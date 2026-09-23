@@ -1,0 +1,236 @@
+INCANTO — 13 Offline AI / BCI / Biometric PWA Prototypes
+COMMERCIAL LICENSE AGREEMENT
+================================================================
+
+Copyright (c) 2026 Paulina Jakubowska / OJJJA.XYZ
+All rights reserved.
+
+Live Demos: https://ojjja.xyz
+Contact: mepaulaj@gmail.com
+LinkedIn: https://www.linkedin.com/in/paulina-jakubowska-65712b163
+
+================================================================
+1. OVERVIEW
+================================================================
+
+This license governs the use of the INCANTO bundle consisting of
+13 independent software projects (the "Software"):
+
+1.  ThinkLink BCI
+2.  Perceptio
+3.  NeuroMusic
+4.  IrisVerify ID
+5.  Quantum Vault / IrisVault
+6.  Kobalt AI Builder
+7.  Vibe Coder
+8.  Kobalt Automation
+9.  ASI Bridge
+10. CRM AI + Asystent Sprzedaży
+11. 45 Mini SaaS HTML
+12. ClusterLaunch
+13. INCANTO OS
+
+The Software is provided under three separate licensing options.
+Choose the option that matches your use case.
+
+================================================================
+2. LICENSING OPTIONS
+================================================================
+
+OPTION A — COMMERCIAL LICENSE (SINGLE PROJECT)
+Price: €5,000
+
+Grant:
+  • Non-exclusive, non-transferable license
+  • Use in ONE commercial project (product or service)
+  • Modify the source code for your own needs
+  • Deploy on unlimited domains you own or control
+
+Restrictions:
+  • You may NOT resell, sublicense or redistribute the
+    source code as a standalone product or template
+  • You may NOT claim authorship of the original code
+  • You may NOT transfer this license to a third party
+  • You may NOT use more than one project from the bundle
+
+----------------------------------------------------------------
+
+OPTION B — BUNDLE LICENSE (3–4 PROJECTS)
+Price: €18,000
+
+Grant:
+  • Non-exclusive, non-transferable license
+  • Use in UP TO FOUR commercial projects
+  • Modify the source code for your own needs
+  • Deploy on unlimited domains you own or control
+  • White-label rights included (see Section 4)
+
+Restrictions:
+  • You may NOT resell, sublicense or redistribute the
+    source code as a standalone product or template
+  • You may NOT claim authorship of the original code
+  • You may NOT transfer this license to a third party
+  • You may NOT use more than four projects from the bundle
+
+----------------------------------------------------------------
+
+OPTION C — FULL IP BUYOUT (ALL 13 PROJECTS)
+Price: €75,000 + 10% royalties
+
+Grant:
+  • FULL TRANSFER of intellectual property rights
+  • Exclusive ownership of all 13 projects
+  • All source code, layouts, documentation
+  • Right to modify, resell, sublicense or redistribute
+  • Optional: domain ojjja.xyz included (negotiable)
+  • White-label rights included (see Section 4)
+  • Right to register trademarks based on the Software
+
+Royalties:
+  • 10% of gross revenue from commercial exploitation
+    of the Software for a period of 24 months
+  • Royalties negotiable for bulk acquisition
+
+Restrictions:
+  • You may NOT claim authorship of the original code
+    (attribution optional but appreciated)
+
+================================================================
+3. GRANT OF LICENSE (COMMON TO ALL OPTIONS)
+================================================================
+
+Subject to the terms of the chosen option, the Author grants
+you a worldwide license to:
+
+  a) Use the Software for commercial and non-commercial purposes
+  b) Modify, adapt and create derivative works
+  c) Integrate the Software into your own products or services
+  d) Deploy the Software on servers, cloud platforms or
+     on-premise infrastructure
+
+================================================================
+4. WHITE-LABEL RIGHTS
+================================================================
+
+For Options B and C, you are granted the right to:
+
+  a) Rebrand the Software with your own name, logo and identity
+  b) Remove or replace the original branding
+  c) Distribute the rebranded Software to your clients
+  d) Use the Software as part of a larger commercial offering
+
+Note: For Option A, white-label rights are NOT included.
+
+================================================================
+5. RESTRICTIONS (COMMON TO ALL OPTIONS)
+================================================================
+
+You may NOT:
+
+  a) Use the Software for illegal purposes
+  b) Remove or alter this license file from the Software
+  c) Use the Software in safety-critical systems without
+     independent verification and validation
+  d) Claim that the Software has been certified, approved or
+     endorsed by any regulatory body without written consent
+
+================================================================
+6. THIRD-PARTY COMPONENTS
+================================================================
+
+The Software uses the following third-party services and
+libraries. These are NOT included in the license and require
+separate agreements:
+
+  • OpenAI API (platform.openai.com)
+  • Anthropic API (console.anthropic.com)
+  • Mistral AI API (console.mistral.ai)
+  • Replicate API (replicate.com)
+  • Supabase (supabase.com)
+  • AWS (aws.amazon.com)
+  • TON Blockchain (ton.org)
+  • Google OAuth (console.cloud.google.com)
+
+You are responsible for obtaining your own API keys and
+complying with the terms of service of each provider.
+
+================================================================
+7. INTELLECTUAL PROPERTY NOTICE
+================================================================
+
+For Options A and B:
+  All source code, design and documentation remain the
+  intellectual property of the Author. This license grants
+  usage rights only — not ownership.
+
+For Option C:
+  All rights, assets, visual layouts and source codes are
+  transferred completely to the Buyer upon payment in full.
+  The Buyer becomes the sole owner of the Software.
+
+================================================================
+8. NO WARRANTY
+================================================================
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================
+9. SECURITY DISCLAIMER
+================================================================
+
+The Software includes biometric components (IrisVerify,
+IrisVault, Quantum Vault) that use the Web Crypto API for
+AES-256-GCM encryption. While this implements strong
+cryptography, the Author makes no guarantee that the
+Software is free from vulnerabilities.
+
+Users are responsible for:
+  • Evaluating security requirements for their use case
+  • Conducting independent security audits before deployment
+  • Complying with GDPR, eIDAS 2.0 and other applicable
+    regulations when processing biometric data
+
+For enterprise-grade biometric and password management,
+consider dedicated solutions such as Bitwarden, 1Password
+or KeePass.
+
+================================================================
+10. STATUS DISCLAIMER
+================================================================
+
+All projects are provided at prototype and demonstrator stage.
+No medical, clinical, regulatory or commercial claims are made.
+
+The Software is NOT intended for:
+  • Medical diagnosis or treatment
+  • Safety-critical systems
+  • Regulated financial services without independent compliance
+
+================================================================
+11. PAYMENT TERMS
+================================================================
+
+  • Payment in full before transfer of source code
+  • Accepted methods: bank transfer, escrow (recommended),
+    or platform-managed payment (IndieMaker, ExitBid, Flipper)
+  • Currency: EUR or USD (exchange rate at day of payment)
+  • Invoices issued upon request
+
+================================================================
+12. TRANSFER PROCESS
+================================================================
+
+The transfer process, deliverables, payment milestones, and any
+royalty terms should be documented in a separately executed
+purchase agreement signed by both parties.
+
+================================================================
+
+© 2026 Paulina Jakubowska / OJJJA.XYZ
