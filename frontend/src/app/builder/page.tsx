@@ -1,5 +1,7 @@
 "use client";
 
+import PersistentAgentPanel from "@/components/PersistentAgentPanel";
+
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -863,7 +865,20 @@ export default function BuilderPage() {
         </section>
       </div>
 
-      {/* BOTTOM PANEL: Agent Logs & Terminal */}
+            {/* PERSISTENT AGENT SECTION */}
+      <div className="bg-zinc-950/80 border-t border-zinc-800/80 px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <h2 className="text-sm font-bold text-zinc-300 uppercase tracking-wider font-mono">
+              1 Agent Always-On — nie w przeglądarce
+            </h2>
+          </div>
+          <PersistentAgentPanel />
+        </div>
+      </div>
+
+{/* BOTTOM PANEL: Agent Logs & Terminal */}
       <div className={`bg-zinc-950 border-t border-zinc-800 shrink-0 transition-all duration-200 ${
         isBottomOpen ? "h-36" : "h-8"
       }`}>
