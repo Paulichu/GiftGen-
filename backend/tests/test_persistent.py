@@ -22,6 +22,30 @@ async def test_health_check_returns_persistent_agent():
 
 
 @pytest.mark.asyncio
+async def test_direct_agent_chat_endpoint():
+    db = get_database()
+    transport = ASGITransport(app=app)
+    chat_payload = {
+        "message": "Czy jutro 15:00 wolne?",
+        "channel": "app",
+        "chat_id": "app-user-paulina",
+        "history": [{"role": "user", "content": "Cześć"}]
+    }
+
+    with patch("app.routers.persistent.run_persistent_agent", new_callable=AsyncMock) as mock_agent:
+        mock_agent.return_value = ("Test reply: termin jest wolny", ["check_availability({'date': 'jutro'})"])
+
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.post("/api/agent/chat", json=chat_payload)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["reply"] == "Test reply: termin jest wolny"
+            assert len(data["tool_calls"]) == 1
+            assert "check_availability" in data["tool_calls"][0]
+            assert data["channel"] == "app"
+
+
+@pytest.mark.asyncio
 async def test_telegram_webhook_success_with_mocked_agent():
     db = get_database()
     transport = ASGITransport(app=app)
@@ -37,7 +61,7 @@ async def test_telegram_webhook_success_with_mocked_agent():
     }
 
     with patch("app.routers.persistent.run_persistent_agent", new_callable=AsyncMock) as mock_agent:
-        mock_agent.return_value = "Termin jutro o 15:00 jest wolny!"
+        mock_agent.return_value = ("Termin jutro o 15:00 jest wolny!", ["check_availability(...)"])
 
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             response = await ac.post("/api/agent/webhook/telegram", json=fake_update)
@@ -80,7 +104,7 @@ async def test_whatsapp_verify_and_webhook():
         }
 
         with patch("app.routers.persistent.run_persistent_agent", new_callable=AsyncMock) as mock_agent:
-            mock_agent.return_value = "Zapisano rezerwację."
+            mock_agent.return_value = ("Zapisano rezerwację.", ["create_booking(...)"])
             post_resp = await ac.post("/api/agent/webhook/whatsapp", json=fake_payload)
             assert post_resp.status_code == 200
             assert post_resp.json() == {"ok": True}

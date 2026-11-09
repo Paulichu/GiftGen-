@@ -1,12 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
-  eslint: {
-    ignoreDuringBuilds: true,
+  output: 'export',
+  images: {
+    unoptimized: true,
   },
-  typescript: {
-    ignoreBuildErrors: true,
+  trailingSlash: true,
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   },
 };
 

@@ -11,8 +11,13 @@ import {
   Sparkles,
   ShieldCheck,
   Wrench,
-  Key
+  Key,
+  Loader2,
+  Smartphone
 } from "lucide-react";
+import { isNative } from "@/lib/capacitor";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface ChatMessage {
   id: string;
@@ -27,6 +32,12 @@ export default function PersistentAgentPanel() {
   const [uptimeSeconds, setUptimeSeconds] = useState<number>(142850);
   const [channel, setChannel] = useState<"telegram" | "whatsapp">("telegram");
   const [copied, setCopied] = useState<boolean>(false);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [nativeActive, setNativeActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    setNativeActive(isNative());
+  }, []);
 
   const [systemPrompt, setSystemPrompt] = useState<string>(
     "You are ALWAYS-ON assistant on Telegram/WhatsApp. Work 24/7 even when owner closes browser. Answer short, in Polish. Use tools for bookings. Never say you are AI model."
@@ -44,7 +55,7 @@ export default function PersistentAgentPanel() {
     {
       id: "init-1",
       sender: "agent",
-      text: "Cześć! Jestem Twoim asystentem działającym 24/7 na Telegramie i WhatsAppie. Mogę umawiać spotkania i sprawdzać terminy nawet gdy wyłączysz komputer.",
+      text: "Cześć! Jestem Twoim asystentem działającym 24/7 na Telegramie i WhatsAppie. Połączony bezpośrednio z bazą MongoDB oraz modelem OpenAI.",
       timestamp: "10:00",
     },
   ]);
@@ -61,7 +72,7 @@ export default function PersistentAgentPanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
@@ -86,9 +97,9 @@ export default function PersistentAgentPanel() {
     setTools((prev) => ({ ...prev, [toolName]: !prev[toolName] }));
   };
 
-  const handleSendSimulator = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim()) return;
+    if (!inputMsg.trim() || isTyping) return;
 
     const userText = inputMsg.trim();
     const nowTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -100,48 +111,64 @@ export default function PersistentAgentPanel() {
       timestamp: nowTime,
     };
 
+    // Push user message and clear input
     setMessages((prev) => [...prev, newMsg]);
     setInputMsg("");
+    setIsTyping(true);
 
-    setTimeout(() => {
-      const lower = userText.toLowerCase();
-      let toolCalled: string | undefined = undefined;
-      let replyText = "Cześć! W czym mogę pomóc? Mogę sprawdzić dostępne terminy lub zapisać spotkanie.";
+    try {
+      // Build history of last 6 messages
+      const historyPayload = messages.slice(-6).map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
 
-      if (
-        (lower.includes("wolne") || lower.includes("dostęp") || lower.includes("jutro")) &&
-        tools.check_availability
-      ) {
-        toolCalled = "check_availability(date='jutro')";
-        replyText = "Sprawdziłem terminarz na jutro: wolne godziny to 10:00, 13:30 oraz 16:00. Która godzina Ci odpowiada?";
-      } else if (
-        (lower.includes("zapisz") || lower.includes("paulina") || lower.includes("umów")) &&
-        tools.create_booking
-      ) {
-        toolCalled = "create_booking(name='Paulina', time='jutro 15:00')";
-        replyText = "Gotowe! Zarezerwowałem termin dla Paulina na jutro o 15:00 w bazie MongoDB. Potwierdzenie zostało wysłane.";
-      } else if (
-        (lower.includes("lista") || lower.includes("rezerwacje") || lower.includes("terminy")) &&
-        tools.get_bookings
-      ) {
-        toolCalled = "get_bookings()";
-        replyText = "Aktualne rezerwacje w systemie:\n• Paulina: jutro 15:00 [confirmed]\n• Marek: czwartek 11:00 [confirmed]";
+      const res = await fetch(`${API_URL}/api/agent/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userText,
+          channel: channel,
+          chat_id: "app-user-paulina",
+          history: historyPayload,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      const agentReply: ChatMessage = {
+      const data = await res.json();
+      const agentMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         sender: "agent",
-        text: replyText,
-        toolCall: toolCalled,
+        text: data.reply || "Brak odpowiedzi od asystenta.",
+        toolCall: Array.isArray(data.tool_calls) && data.tool_calls.length > 0 ? data.tool_calls[0] : undefined,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
-      setMessages((prev) => [...prev, agentReply]);
-    }, 600);
+      if (isNative()) {
+        console.log('[Native] Agent reply notification:', data.reply);
+      }
+
+      setMessages((prev) => [...prev, agentMsg]);
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        sender: "agent",
+        text: `Backend nie odpowiada. Sprawdź czy Railway działa i czy NEXT_PUBLIC_API_URL jest ustawione. Błąd: ${err.message || err}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
-    <div className="border border-zinc-800 rounded-2xl bg-zinc-950 p-6 my-6 shadow-2xl relative overflow-hidden">
+    <div className="w-full max-w-full box-border overflow-x-hidden border border-zinc-800 rounded-2xl bg-zinc-950 p-4 sm:p-6 my-6 shadow-2xl relative">
       <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
@@ -152,17 +179,23 @@ export default function PersistentAgentPanel() {
             <div className={`w-3.5 h-3.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-zinc-600"} relative`} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono font-bold tracking-wider text-emerald-400 uppercase bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
                 PERSISTENT AGENT — ALWAYS ON
               </span>
+              {nativeActive && (
+                <span className="text-xs font-mono font-bold text-sky-400 bg-sky-950/70 border border-sky-800/80 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Smartphone className="w-3 h-3" />
+                  NATIVE ANDROID - Push ON
+                </span>
+              )}
               <span className="text-xs text-zinc-500 font-mono flex items-center gap-1">
                 <Clock className="w-3 h-3 text-zinc-400" />
                 Uptime: {formatUptime(uptimeSeconds)}
               </span>
             </div>
-            <h3 className="text-lg font-bold text-white mt-1 flex items-center gap-2">
-              <Bot className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-base sm:text-lg font-bold text-white mt-1 flex items-center gap-2">
+              <Bot className="w-5 h-5 text-emerald-400 shrink-0" />
               1 Agent Always-On — nie w przeglądarce (Telegram / WhatsApp 24/7)
             </h3>
           </div>
@@ -187,7 +220,7 @@ export default function PersistentAgentPanel() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
         {/* Left Column: Config */}
-        <div className="lg:col-span-7 space-y-5">
+        <div className="lg:col-span-7 space-y-5 min-w-0">
           <div>
             <label className="text-xs font-medium text-zinc-400 mb-2 block flex items-center gap-1.5">
               <Radio className="w-3.5 h-3.5 text-zinc-400" />
@@ -344,13 +377,13 @@ export default function PersistentAgentPanel() {
         </div>
 
         {/* Right Column: Chat Simulator */}
-        <div className="lg:col-span-5 flex flex-col bg-zinc-900/70 border border-zinc-800/80 rounded-xl overflow-hidden h-[440px]">
+        <div className="lg:col-span-5 flex flex-col bg-zinc-900/70 border border-zinc-800/80 rounded-xl overflow-hidden h-[440px] min-w-0">
           <div className="px-4 py-2.5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
             <span className="text-xs font-mono font-medium text-zinc-300 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Symulator Live {channel === "telegram" ? "Telegram" : "WhatsApp"}
+              Live {channel === "telegram" ? "Telegram" : "WhatsApp"} Chat
             </span>
-            <span className="text-[10px] text-zinc-500 uppercase font-mono">24/7 Sandbox</span>
+            <span className="text-[10px] text-zinc-500 uppercase font-mono">Real Backend API</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 font-sans">
@@ -377,6 +410,12 @@ export default function PersistentAgentPanel() {
                 <span className="text-[9px] text-zinc-500 mt-1 px-1">{m.timestamp}</span>
               </div>
             ))}
+            {isTyping && (
+              <div className="flex items-center gap-2 text-zinc-500 text-xs py-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                <span>Asystent przetwarza zapytanie...</span>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -405,7 +444,7 @@ export default function PersistentAgentPanel() {
           </div>
 
           <form
-            onSubmit={handleSendSimulator}
+            onSubmit={handleSendMessage}
             className="p-3 bg-zinc-900 border-t border-zinc-800 flex gap-2"
           >
             <input
@@ -413,14 +452,15 @@ export default function PersistentAgentPanel() {
               placeholder="Napisz do asystenta 24/7..."
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition"
+              disabled={isTyping}
+              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition disabled:opacity-50"
             />
             <button
               type="submit"
-              disabled={!inputMsg.trim()}
+              disabled={!inputMsg.trim() || isTyping}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 flex items-center gap-1"
             >
-              <Send className="w-3.5 h-3.5" />
+              {isTyping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             </button>
           </form>
         </div>

@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
 from app.database import get_database
 from app.config import settings
@@ -128,7 +128,15 @@ def _heuristic_fallback(user_message: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-async def run_persistent_agent(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+async def run_persistent_agent(
+    user_message: str,
+    history: Optional[List[Dict[str, str]]] = None
+) -> Tuple[str, List[str]]:
+    """
+    Runs the persistent assistant with OpenAI gpt-4o-mini and handles tool calls.
+    Returns:
+        tuple (reply: str, tool_names: list[str])
+    """
     messages: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     if history:
@@ -143,9 +151,12 @@ async def run_persistent_agent(user_message: str, history: Optional[List[Dict[st
     if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY.strip() == "":
         heuristic = _heuristic_fallback(user_message)
         if heuristic:
-            tool_res = await execute_tool_call(heuristic["tool"], heuristic["args"])
-            return f"Cześć! {tool_res}"
-        return "Cześć! W czym mogę pomóc w kwestii rezerwacji lub wolnych terminów?"
+            tool_name = heuristic["tool"]
+            args = heuristic["args"]
+            tool_res = await execute_tool_call(tool_name, args)
+            tool_call_str = f"{tool_name}({json.dumps(args)})"
+            return f"Cześć! {tool_res}", [tool_call_str]
+        return "Cześć! W czym mogę pomóc w kwestii rezerwacji lub wolnych terminów?", []
 
     try:
         from openai import AsyncOpenAI
@@ -163,15 +174,18 @@ async def run_persistent_agent(user_message: str, history: Optional[List[Dict[st
         response_msg = choice.message
 
         if response_msg.tool_calls:
+            tool_calls_executed: List[str] = []
             messages.append(response_msg)
 
             for tool_call in response_msg.tool_calls:
                 fn_name = tool_call.function.name
+                raw_args = tool_call.function.arguments or "{}"
                 try:
-                    fn_args = json.loads(tool_call.function.arguments or "{}")
+                    fn_args = json.loads(raw_args)
                 except Exception:
                     fn_args = {}
 
+                tool_calls_executed.append(f"{fn_name}({raw_args})")
                 tool_result = await execute_tool_call(fn_name, fn_args)
 
                 messages.append({
@@ -186,14 +200,17 @@ async def run_persistent_agent(user_message: str, history: Optional[List[Dict[st
                 messages=messages,
                 temperature=0.2,
             )
-            return second_response.choices[0].message.content or "Gotowe."
+            final_content = second_response.choices[0].message.content or "Gotowe."
+            return final_content, tool_calls_executed
 
-        return response_msg.content or "Gotowe."
+        return response_msg.content or "Gotowe.", []
 
     except Exception as e:
         logger.error(f"Error in run_persistent_agent OpenAI call: {e}")
         heuristic = _heuristic_fallback(user_message)
         if heuristic:
-            tool_res = await execute_tool_call(heuristic["tool"], heuristic["args"])
-            return f"{tool_res}"
-        return "Przepraszam, chwilowo nie mogę sprawdzić terminarza. Proszę o ponowny kontakt za chwilę."
+            tool_name = heuristic["tool"]
+            args = heuristic["args"]
+            tool_res = await execute_tool_call(tool_name, args)
+            return f"{tool_res}", [f"{tool_name}({json.dumps(args)})"]
+        return "Przepraszam, chwilowo nie mogę sprawdzić terminarza. Proszę o ponowny kontakt za chwilę.", []

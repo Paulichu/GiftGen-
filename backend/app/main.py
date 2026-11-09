@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -10,10 +11,38 @@ app = FastAPI(
     version="1.0.0",
 )
 
-cors_origins = settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["*"]
+# Parse origins from environment, split by comma if string, and include production frontends
+raw_cors = os.getenv("CORS_ORIGINS", "")
+origins_list: list[str] = []
+
+if isinstance(raw_cors, str) and raw_cors.strip():
+    # If comma-separated or json string
+    if raw_cors.startswith("[") and raw_cors.endswith("]"):
+        try:
+            import json
+            origins_list = json.loads(raw_cors)
+        except Exception:
+            origins_list = [o.strip() for o in raw_cors.strip("[]").split(",") if o.strip()]
+    else:
+        origins_list = [o.strip() for o in raw_cors.split(",") if o.strip()]
+elif settings.CORS_ORIGINS:
+    origins_list = list(settings.CORS_ORIGINS)
+
+# Always include development origins and https://frontend-84ui.vercel.app for testing
+default_allowed = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "https://frontend-84ui.vercel.app",
+    "*"
+]
+for item in default_allowed:
+    if item not in origins_list:
+        origins_list.append(item)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins if "*" not in cors_origins else ["*"],
+    allow_origins=origins_list if "*" not in origins_list else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

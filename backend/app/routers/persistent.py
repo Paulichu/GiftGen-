@@ -1,8 +1,9 @@
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Request, Query, HTTPException, status
 from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
 import httpx
 from app.config import settings
 from app.database import get_database
@@ -11,6 +12,65 @@ from app.services.persistent_agent import run_persistent_agent
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/agent", tags=["persistent-agent"])
+
+
+class ChatRequest(BaseModel):
+    message: str
+    channel: str = "app"
+    chat_id: str = "app-user"
+    history: List[Dict[str, str]] = []
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    tool_calls: List[str] = []
+    channel: str
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def direct_agent_chat(req: ChatRequest):
+    """
+    Direct synchronous endpoint for the frontend / app:
+    App -> Railway Backend -> OpenAI -> Mongo.
+    Never returns 500, saves messages to Mongo db.messages.
+    """
+    reply = ""
+    tool_calls: List[str] = []
+
+    try:
+        raw_res = await run_persistent_agent(req.message, req.history)
+        if isinstance(raw_res, tuple):
+            reply, tool_calls = raw_res
+        elif isinstance(raw_res, dict):
+            reply = raw_res.get("reply", "")
+            tool_calls = raw_res.get("tool_calls", [])
+        else:
+            reply = str(raw_res)
+            tool_calls = []
+    except Exception as e:
+        logger.error(f"Error running persistent agent in /chat: {e}")
+        reply = f"Wystąpił problem z asystentem: {str(e)}"
+        tool_calls = []
+
+    # Save to MongoDB db.messages without failing request on DB errors
+    try:
+        db = get_database()
+        await db["messages"].insert_one({
+            "channel": req.channel,
+            "chat_id": req.chat_id,
+            "in": req.message,
+            "out": reply,
+            "tool_calls": tool_calls,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as dbe:
+        logger.error(f"Failed to record chat in db.messages: {dbe}")
+
+    return ChatResponse(
+        reply=reply,
+        tool_calls=tool_calls,
+        channel=req.channel
+    )
 
 
 @router.post("/webhook/telegram")
@@ -29,17 +89,26 @@ async def telegram_webhook(request: Request) -> Dict[str, bool]:
 
         db = get_database()
 
-        await db["messages"].insert_one({
-            "channel": "telegram",
-            "direction": "inbound",
-            "chat_id": chat_id,
-            "sender_name": first_name,
-            "text": text,
-            "raw": body,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        try:
+            await db["messages"].insert_one({
+                "channel": "telegram",
+                "direction": "inbound",
+                "chat_id": chat_id,
+                "sender_name": first_name,
+                "text": text,
+                "raw": body,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        except Exception as dbe:
+            logger.error(f"DB error recording telegram inbound: {dbe}")
 
-        reply_text = await run_persistent_agent(text)
+        raw_res = await run_persistent_agent(text)
+        if isinstance(raw_res, tuple):
+            reply_text, _ = raw_res
+        elif isinstance(raw_res, dict):
+            reply_text = raw_res.get("reply", "")
+        else:
+            reply_text = str(raw_res)
 
         bot_token = settings.TELEGRAM_BOT_TOKEN
         if bot_token:
@@ -55,14 +124,17 @@ async def telegram_webhook(request: Request) -> Dict[str, bool]:
             except Exception as e:
                 logger.error(f"Failed to send Telegram message: {e}")
 
-        await db["messages"].insert_one({
-            "channel": "telegram",
-            "direction": "outbound",
-            "chat_id": chat_id,
-            "reply_to_name": first_name,
-            "text": reply_text,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        try:
+            await db["messages"].insert_one({
+                "channel": "telegram",
+                "direction": "outbound",
+                "chat_id": chat_id,
+                "reply_to_name": first_name,
+                "text": reply_text,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        except Exception as dbe:
+            logger.error(f"DB error recording telegram outbound: {dbe}")
 
         return {"ok": True}
 
@@ -116,16 +188,25 @@ async def whatsapp_webhook(request: Request) -> Dict[str, bool]:
 
         db = get_database()
 
-        await db["messages"].insert_one({
-            "channel": "whatsapp",
-            "direction": "inbound",
-            "sender_phone": sender_phone,
-            "text": text_body,
-            "raw": incoming_msg,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        try:
+            await db["messages"].insert_one({
+                "channel": "whatsapp",
+                "direction": "inbound",
+                "sender_phone": sender_phone,
+                "text": text_body,
+                "raw": incoming_msg,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        except Exception as dbe:
+            logger.error(f"DB error saving whatsapp inbound: {dbe}")
 
-        reply_text = await run_persistent_agent(text_body)
+        raw_res = await run_persistent_agent(text_body)
+        if isinstance(raw_res, tuple):
+            reply_text, _ = raw_res
+        elif isinstance(raw_res, dict):
+            reply_text = raw_res.get("reply", "")
+        else:
+            reply_text = str(raw_res)
 
         phone_id = settings.WHATSAPP_PHONE_ID
         whatsapp_token = settings.WHATSAPP_TOKEN
@@ -149,13 +230,16 @@ async def whatsapp_webhook(request: Request) -> Dict[str, bool]:
             except Exception as e:
                 logger.error(f"Failed to send WhatsApp message: {e}")
 
-        await db["messages"].insert_one({
-            "channel": "whatsapp",
-            "direction": "outbound",
-            "recipient_phone": sender_phone,
-            "text": reply_text,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        try:
+            await db["messages"].insert_one({
+                "channel": "whatsapp",
+                "direction": "outbound",
+                "recipient_phone": sender_phone,
+                "text": reply_text,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        except Exception as dbe:
+            logger.error(f"DB error saving whatsapp outbound: {dbe}")
 
         return {"ok": True}
 
