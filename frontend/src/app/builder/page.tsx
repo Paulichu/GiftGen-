@@ -91,7 +91,7 @@ export default function BuilderPage() {
       agent: "System",
       message: "Emergent Studio ready. All generations are free and unlimited.",
       level: "info",
-      time: new Date().toLocaleTimeString(),
+      time: "12:00:00",
     },
   ]);
   const [isBottomOpen, setIsBottomOpen] = useState(true);
@@ -393,7 +393,7 @@ export default function BuilderPage() {
   `;
 
   return (
-    <div className="flex flex-col h-screen bg-[#09090b] text-white selection:bg-indigo-600 selection:text-white overflow-hidden font-sans">
+    <div className="flex flex-col min-h-screen bg-[#09090b] text-white selection:bg-indigo-600 selection:text-white overflow-y-auto font-sans">
       {/* Top Bar */}
       <header className="h-14 bg-zinc-950 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-4">
@@ -511,7 +511,7 @@ export default function BuilderPage() {
 
 
       {/* Main 3-Column Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="h-[calc(100vh-100px)] min-h-[580px] flex overflow-hidden shrink-0">
         {/* LEFT COLUMN: Project Explorer */}
         <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col shrink-0">
           <div className="p-3 border-b border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400 font-semibold uppercase tracking-wider">

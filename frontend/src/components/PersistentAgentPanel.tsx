@@ -71,7 +71,10 @@ export default function PersistentAgentPanel() {
   }, [isOnline]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only scroll internally inside the chat simulator container, prevent jumping the main page scroll
+    if (messages.length > 1) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }, [messages, isTyping]);
 
   const formatUptime = (seconds: number) => {
@@ -82,9 +85,16 @@ export default function PersistentAgentPanel() {
     return `${days}d ${hrs}h ${mins}m ${secs}s`;
   };
 
+  const [originUrl, setOriginUrl] = useState<string>("https://giftgen.emergent.sh");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOriginUrl(window.location.origin);
+    }
+  }, []);
+
   const getWebhookUrl = () => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://giftgen.emergent.sh";
-    return `${origin}/api/agent/webhook/${channel}`;
+    return `${originUrl}/api/agent/webhook/${channel}`;
   };
 
   const handleCopy = () => {
