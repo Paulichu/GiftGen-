@@ -497,6 +497,18 @@ export default function BuilderPage() {
           </button>
         </div>
       </header>
+      {/* Offline Mode Indicator Banner */}
+      <div className="bg-amber-950/40 border-b border-amber-800/40 px-4 py-1.5 flex items-center justify-between text-xs text-amber-300">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="font-medium">Offline Mode - using local engine</span>
+          <span className="text-zinc-500 hidden sm:inline">| Standalone browser generation active</span>
+        </div>
+        <span className="text-[10px] bg-amber-900/40 border border-amber-700/50 px-2 py-0.5 rounded text-amber-200">
+          Zero-Lockout
+        </span>
+      </div>
+
 
       {/* Main 3-Column Layout */}
       <div className="flex-1 flex overflow-hidden">
