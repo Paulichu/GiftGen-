@@ -96,12 +96,6 @@ export default function BuilderPage() {
 
   // Initialize
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      setIsAuthOpen(true);
-      setAuthChecked(true);
-      return;
-    }
     loadUserData();
     setAuthChecked(true);
   }, []);
@@ -138,10 +132,8 @@ export default function BuilderPage() {
         }
       }
     } catch (err: any) {
-      if (err.status === 401) {
-        clearStoredToken();
-        setIsAuthOpen(true);
-      }
+      // Do not block with auth modal; fallback provides offline demo state
+      console.warn("Could not load remote user data, continuing in standalone studio mode:", err);
     }
   };
 
@@ -926,11 +918,12 @@ export default function BuilderPage() {
         )}
       </div>
 
-      {/* Auth Modal if unauthenticated */}
+      {/* Auth Modal if user manually clicks login or auth needed */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={() => {
+          setIsAuthOpen(false);
           loadUserData();
         }}
       />

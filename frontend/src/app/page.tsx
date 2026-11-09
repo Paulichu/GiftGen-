@@ -62,11 +62,8 @@ export default function LandingPage() {
     }
     loadStats();
 
-    // Check token presence
-    const token = getStoredToken();
-    if (token) {
-      setCurrentUser({ loggedIn: true });
-    }
+    // Standalone builder mode enabled by default
+    setCurrentUser({ loggedIn: true });
   }, []);
 
   const handleStartBuilding = (chosenPrompt?: string) => {
