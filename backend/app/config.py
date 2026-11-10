@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_MINUTES: int = 60 * 24 * 7  # 7 days
     OPENAI_API_KEY: Optional[str] = None
     GITHUB_TOKEN: Optional[str] = None
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    WHATSAPP_TOKEN: Optional[str] = None
+    WHATSAPP_PHONE_ID: Optional[str] = None
+    WEBHOOK_SECRET: Optional[str] = None
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"]
 
