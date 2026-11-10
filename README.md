@@ -103,6 +103,71 @@ Bot natychmiast nasłuchuje na Telegramie i zarządza rezerwacjami w MongoDB w c
 
 ---
 
+### 4. Uruchomienie w Termux na telefonie z Androidem (Krok po kroku) 📲
+
+Możesz uruchomić kompletny Emergent Studio (Backend + 24/7 Agent Telegram + Frontend) bezpośrednio na telefonie z Androidem w aplikacji Termux, bez roota:
+
+#### Krok 1: Przygotowanie środowiska w Termux
+W aplikacji Termux wpisz:
+```bash
+# Aktualizacja pakietów i instalacja narzędzi
+pkg update -y && pkg upgrade -y
+pkg install -y git python nodejs-lts clang make build-essential tmux
+termux-wake-lock
+```
+*(Polecenie `termux-wake-lock` zapobiega uśpieniu procesora telefonu przez system Android, dzięki czemu agent działa 24/7).*
+
+#### Krok 2: Klonowanie repozytorium
+```bash
+git clone <URL_REPOZYTORIUM> emergent-studio
+cd emergent-studio
+```
+
+#### Krok 3: Konfiguracja zmiennych środowiskowych
+```bash
+cp .env.example .env
+# W Termux używamy wbudowanego mocka pamięciowego MongoDB (USE_MOCK_MONGO=1)
+sed -i 's/USE_MOCK_MONGO=0/USE_MOCK_MONGO=1/g' .env
+```
+
+#### Krok 4: Uruchomienie Backendu (FastAPI)
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Start backendu w tle lub w nowym oknie tmux:
+USE_MOCK_MONGO=1 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+```
+Sprawdzenie backendu:
+```bash
+curl http://localhost:8000/health
+# Zwróci: {"status":"ok","persistent_agent":"online","credits":"infinite"}
+```
+
+#### Krok 5: Uruchomienie 24/7 Agenta Telegram w tle
+```bash
+# Podaj swój token z @BotFather:
+export TELEGRAM_BOT_TOKEN="twój_token"
+python -m app.telegram_bot_polling &
+```
+
+#### Krok 6: Uruchomienie Frontendu (Next.js)
+W nowym oknie (lub w sesji `tmux`):
+```bash
+cd ../frontend
+npm install
+npm run dev -- -H 0.0.0.0 -p 3000
+```
+
+#### Krok 7: Otwarcie w przeglądarce w telefonie
+Otwórz Chrome lub Brave na telefonie i wejdź na:
+`http://localhost:3000` (lub `http://127.0.0.1:3000`)
+
+---
+
 ## 📱 Android Build (Capacitor 6)
 
 The frontend is wrapped with Capacitor without custom Kotlin or Java code:
