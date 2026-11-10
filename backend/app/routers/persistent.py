@@ -19,6 +19,8 @@ class ChatRequest(BaseModel):
     channel: str = "app"
     chat_id: str = "app-user"
     history: List[Dict[str, str]] = []
+    business_name: Optional[str] = None
+    system_prompt: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -38,7 +40,12 @@ async def direct_agent_chat(req: ChatRequest):
     tool_calls: List[str] = []
 
     try:
-        raw_res = await run_persistent_agent(req.message, req.history)
+        raw_res = await run_persistent_agent(
+            user_message=req.message,
+            history=req.history,
+            business_name=req.business_name,
+            system_prompt=req.system_prompt
+        )
         if isinstance(raw_res, tuple):
             reply, tool_calls = raw_res
         elif isinstance(raw_res, dict):
@@ -58,6 +65,7 @@ async def direct_agent_chat(req: ChatRequest):
         await db["messages"].insert_one({
             "channel": req.channel,
             "chat_id": req.chat_id,
+            "business_name": req.business_name,
             "in": req.message,
             "out": reply,
             "tool_calls": tool_calls,

@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 
 export function isNative(): boolean {
   return typeof window !== 'undefined' && Capacitor.isNativePlatform();
@@ -52,5 +53,34 @@ export async function initNative(): Promise<void> {
     }
   } catch (err) {
     console.warn('[Native] PushNotifications init error:', err);
+  }
+}
+
+/**
+ * Biometric authentication helper for native devices (Fingerprint, FaceID, Device Credential)
+ */
+export async function authenticateBiometric(reason = 'Odblokuj dostęp do Vibe Engine'): Promise<boolean> {
+  if (!isNative()) {
+    console.log('[Biometric] Non-native environment, authentication bypassed');
+    return true;
+  }
+
+  try {
+    const checkResult = await BiometricAuth.checkBiometry();
+    if (!checkResult.isAvailable) {
+      console.warn('[Biometric] Biometry not available:', checkResult.reason);
+      return false;
+    }
+
+    await BiometricAuth.authenticate({
+      reason,
+      cancelTitle: 'Anuluj',
+      allowDeviceCredential: true,
+      iosFallbackTitle: 'Użyj kodu PIN',
+    });
+    return true;
+  } catch (err) {
+    console.warn('[Biometric] Authentication failed or cancelled:', err);
+    return false;
   }
 }

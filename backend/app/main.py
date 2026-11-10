@@ -28,12 +28,13 @@ if isinstance(raw_cors, str) and raw_cors.strip():
 elif settings.CORS_ORIGINS:
     origins_list = list(settings.CORS_ORIGINS)
 
-# Always include development origins and https://frontend-84ui.vercel.app for testing
+# Always include development origins, lovable workshop and frontend-84ui.vercel.app
 default_allowed = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "https://frontend-84ui.vercel.app",
+    "https://everpresent-agent-workshop.lovable.app",
     "*"
 ]
 for item in default_allowed:
@@ -61,6 +62,11 @@ async def shutdown_event():
     close_database()
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "persistent_agent": "online", "credits": "infinite"}
+
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "persistent_agent": "online"}
+    return {"status": "ok", "persistent_agent": "online", "credits": "infinite"}
