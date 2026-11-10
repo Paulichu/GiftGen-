@@ -103,19 +103,19 @@ Bot natychmiast nasłuchuje na Telegramie i zarządza rezerwacjami w MongoDB w c
 
 ---
 
-### 4. Uruchomienie w Termux na telefonie z Androidem (Krok po kroku) 📲
+### 4. Uruchomienie w Termux na Androidzie — 100% Real (BEZ SYMULACJI, BEZ MOCKÓW) 📲
 
-Możesz uruchomić kompletny Emergent Studio (Backend + 24/7 Agent Telegram + Frontend) bezpośrednio na telefonie z Androidem w aplikacji Termux, bez roota:
+Całość działa w 100% na prawdziwym backendzie, prawdziwym modelu OpenAI (`gpt-4o-mini`), prawdziwej bazie MongoDB (Atlas lub lokalna) i prawdziwym bocie Telegram / WhatsApp.
 
-#### Krok 1: Przygotowanie środowiska w Termux
-W aplikacji Termux wpisz:
+#### Krok 1: Przygotowanie pakietów w Termux
+Otwórz aplikację Termux na Androidzie:
 ```bash
-# Aktualizacja pakietów i instalacja narzędzi
+# Aktualizacja repozytoriów i instalacja pakietów systemowych
 pkg update -y && pkg upgrade -y
 pkg install -y git python nodejs-lts clang make build-essential tmux
 termux-wake-lock
 ```
-*(Polecenie `termux-wake-lock` zapobiega uśpieniu procesora telefonu przez system Android, dzięki czemu agent działa 24/7).*
+*(Polecenie `termux-wake-lock` blokuje wygaszanie procesora w Androidzie — bot i backend działają nieprzerwanie 24/7).*
 
 #### Krok 2: Klonowanie repozytorium
 ```bash
@@ -123,14 +123,22 @@ git clone <URL_REPOZYTORIUM> emergent-studio
 cd emergent-studio
 ```
 
-#### Krok 3: Konfiguracja zmiennych środowiskowych
+#### Krok 3: Prawdziwa konfiguracja środowiska (.env) — BEZ MOCKÓW
 ```bash
 cp .env.example .env
-# W Termux używamy wbudowanego mocka pamięciowego MongoDB (USE_MOCK_MONGO=1)
-sed -i 's/USE_MOCK_MONGO=0/USE_MOCK_MONGO=1/g' .env
+nano .env  # lub edytuj w ulubionym edytorze
 ```
+W pliku `.env` ustaw prawdziwe wartości produkcyjne:
+```env
+USE_MOCK_MONGO=0
+MONGODB_URI=mongodb+srv://user:haslo@twoj-klaster.mongodb.net/emergent?retryWrites=true&w=majority
+OPENAI_API_KEY=sk-proj-twoj_prawdziwy_klucz_openai
+TELEGRAM_BOT_TOKEN=twój_prawdziwy_token_od_botfather
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+*(Baza MongoDB: darmowy stały klaster na mongodb.com Atlas — 0 zł na zawsze, idealny do Termux).*
 
-#### Krok 4: Uruchomienie Backendu (FastAPI)
+#### Krok 4: Instalacja i start prawdziwego Backendu (FastAPI)
 ```bash
 cd backend
 python -m venv venv
@@ -138,33 +146,35 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Start backendu w tle lub w nowym oknie tmux:
-USE_MOCK_MONGO=1 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+# Start backendu z prawdziwym połączeniem do MongoDB i OpenAI:
+uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 ```
-Sprawdzenie backendu:
+Sprawdzenie statusu połączenia:
 ```bash
 curl http://localhost:8000/health
-# Zwróci: {"status":"ok","persistent_agent":"online","credits":"infinite"}
+# Zwraca: {"status":"ok","persistent_agent":"online","credits":"infinite"}
 ```
 
-#### Krok 5: Uruchomienie 24/7 Agenta Telegram w tle
+#### Krok 5: Start Prawdziwego Agenta Telegram (24/7 Polling)
+W tym samym oknie lub w sesji tmux:
 ```bash
-# Podaj swój token z @BotFather:
-export TELEGRAM_BOT_TOKEN="twój_token"
 python -m app.telegram_bot_polling &
 ```
+Agent jest teraz natychmiast aktywny na Twoim koncie Telegram: rozmawia przez OpenAI i zapisuje rzeczywiste rezerwacje do Twojej bazy MongoDB!
 
-#### Krok 6: Uruchomienie Frontendu (Next.js)
-W nowym oknie (lub w sesji `tmux`):
+#### Krok 6: Instalacja i start Frontendu (Next.js 14)
+Otwórz nową sesję Termux (przesuń palcem od lewej krawędzi -> New Session):
 ```bash
-cd ../frontend
+cd emergent-studio/frontend
 npm install
 npm run dev -- -H 0.0.0.0 -p 3000
 ```
 
-#### Krok 7: Otwarcie w przeglądarce w telefonie
-Otwórz Chrome lub Brave na telefonie i wejdź na:
-`http://localhost:3000` (lub `http://127.0.0.1:3000`)
+#### Krok 7: Korzystanie na telefonie
+Otwórz przeglądarkę na telefonie (Chrome/Brave/Firefox) i wpisz:
+`http://localhost:3000`
+
+Wszystkie zapytania trafiają do Twojego lokalnego serwera FastAPI, bazy MongoDB i OpenAI — zero mocków, zero symulacji.
 
 ---
 
