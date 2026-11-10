@@ -38,31 +38,68 @@ Copy `.env.example` to `.env` in the root and fill in the values:
 
 ---
 
-## 🚀 Quickstart
+## 🚀 Quickstart / Jak uruchomić
 
-### 1. Run with Docker Compose
+### 1. Szybki start przez Docker Compose (Zalecane / Recommended)
+
+Jedno polecenie uruchamia bazę MongoDB, backend FastAPI oraz frontend Next.js:
+
 ```bash
+# 1. Kopiowanie pliku zmiennych środowiskowych
+cp .env.example .env
+
+# 2. Uruchomienie wszystkich kontenerów
 docker-compose up --build
 ```
-- Frontend: `http://localhost:3000`
-- Backend API Docs: `http://localhost:8000/docs`
-- Healthcheck: `http://localhost:8000/health`
 
-### 2. Run Locally
+- **Frontend (Aplikacja WWW):** `http://localhost:3000`
+- **Backend API Docs (Swagger):** `http://localhost:8000/docs`
+- **Healthcheck & Status Agenta:** `http://localhost:8000/health`
 
-#### Backend:
+---
+
+### 2. Uruchomienie lokalne (Manualne krok po kroku)
+
+#### A. Backend (FastAPI + Python):
 ```bash
 cd backend
+
+# Utworzenie i aktywacja środowiska wirtualnego (opcjonalnie)
+python3 -m venv venv
+source venv/bin/activate  # na Windows: venv\Scripts\activate
+
+# Instalacja zależności
 pip install -r requirements.txt
+
+# Start serwera API (z auto-reloadem)
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+*Domyślnie, jeśli nie ma lokalnej bazy MongoDB, aplikacja automatycznie używa pamięciowego mocka `mongomock-motor` (`USE_MOCK_MONGO=1`), więc backend startuje natychmiast bez dodatkowej konfiguracji!*
 
-#### Frontend:
+#### B. Frontend (Next.js 14):
+W nowym oknie terminala:
 ```bash
 cd frontend
+
+# Instalacja pakietów
 npm install
+
+# Tryb developerski
 npm run dev
 ```
+Aplikacja dostępna pod adresem: `http://localhost:3000`.
+
+---
+
+### 3. Uruchomienie 24/7 Agenta Telegram (Tryb Polling / Bez publicznego IP)
+
+Jeśli posiadasz token od `@BotFather` i chcesz testować bota na Telegramie bez konieczności wystawiania publicznego adresu HTTPS dla webhooka:
+```bash
+cd backend
+export TELEGRAM_BOT_TOKEN="twój_token_od_botfather"
+python -m app.telegram_bot_polling
+```
+Bot natychmiast nasłuchuje na Telegramie i zarządza rezerwacjami w MongoDB w czasie rzeczywistym.
 
 ---
 
