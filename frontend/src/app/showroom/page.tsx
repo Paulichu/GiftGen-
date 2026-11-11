@@ -565,15 +565,37 @@ export default function ShowroomPage() {
       <section id="contact" className="py-16 px-6 lg:px-12 max-w-6xl mx-auto border-t border-white/[0.08]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div>
-            <div className="text-xs tracking-[0.2em] text-amber-400 font-bold uppercase">
-              Section 8 • Contact &amp; Reply
+            <div className="flex items-center gap-5">
+              <div className="relative shrink-0">
+                <img
+                  src="/paulina_jakubowska_avatar.png"
+                  alt="Paulina Jakubowska - Founder & Lead Architect"
+                  className="h-28 sm:h-32 w-auto object-contain drop-shadow-[0_10px_25px_rgba(20,184,166,0.3)] filter contrast-[1.03]"
+                />
+              </div>
+              <div>
+                <div className="text-xs tracking-[0.2em] text-amber-400 font-bold uppercase">
+                  Section 8 • Contact &amp; Reply
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                  Paulina Jakubowska
+                </h2>
+                <p className="text-sm text-teal-400 font-semibold mt-0.5">
+                  {MONETIZATION_INFO.role} • {MONETIZATION_INFO.company}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <a
+                    href={MONETIZATION_INFO.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-500/10 border border-sky-400/30 text-xs text-sky-300 hover:text-white hover:bg-sky-500/20 font-mono transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>LinkedIn • paulina-jakubowska-65712b163</span>
+                  </a>
+                </div>
+              </div>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-2">
-              Paulina Jakubowska
-            </h2>
-            <p className="text-sm text-teal-400 font-semibold mt-1">
-              {MONETIZATION_INFO.role} • {MONETIZATION_INFO.company}
-            </p>
 
             <div className="mt-6 p-6 rounded-3xl bg-[#0a0f1c] border border-white/10 space-y-4">
               <div className="space-y-1.5">
