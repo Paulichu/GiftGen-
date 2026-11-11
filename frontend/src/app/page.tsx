@@ -372,7 +372,6 @@ export default function LandingPage() {
             <span>&copy; {new Date().getFullYear()} Free Forever Software Studio.</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link href="/showroom" className="hover:text-teal-400 transition font-medium">Showroom</Link>
             <Link href="/builder" className="hover:text-white transition">Builder</Link>
             <a href="#features" className="hover:text-white transition">Agents</a>
             <a href="#pricing" className="hover:text-white transition">Pricing</a>
