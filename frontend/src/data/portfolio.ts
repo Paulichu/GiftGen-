@@ -54,7 +54,7 @@ export const MONETIZATION_INFO = {
   registeredCity: "NRW, Germany (100% remote, online call / Teams)",
   replyToEmail: "compliance@ojjja.site",
   contactEmail: "compliance@ojjja.site",
-  directEmail: "mepaulaj@gmail.com",
+  directEmail: "admin@ojjja.site",
   ipEmail: "ip@ojjja.site",
   supportEmail: "ip@ojjja.site",
   paypalEmail: "admin@ojjja.site",
