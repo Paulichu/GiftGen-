@@ -69,10 +69,13 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#050507] text-white selection:bg-indigo-600 selection:text-white">
       {/* Top Banner */}
-      <div className="w-full bg-gradient-to-r from-emerald-950/60 via-indigo-950/60 to-purple-950/60 border-b border-emerald-500/30 py-2.5 px-4 text-center text-xs sm:text-sm text-emerald-200 flex items-center justify-center gap-2">
+      <div className="w-full bg-gradient-to-r from-emerald-950/60 via-indigo-950/60 to-purple-950/60 border-b border-emerald-500/30 py-2.5 px-4 text-center text-xs sm:text-sm text-emerald-200 flex flex-wrap items-center justify-center gap-2">
         <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
         <span className="font-semibold text-emerald-300">FREE FOREVER · NO CREDITS · NO CARD</span>
         <span className="hidden sm:inline text-zinc-400">| Complete full-stack autonomous studio with Always-On Persistent Agent</span>
+        <Link href="/showroom" className="ml-2 font-bold text-teal-300 hover:text-white underline inline-flex items-center gap-1">
+          <span>Odwiedź Showroom Produktów &amp; Dema IP →</span>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -90,6 +93,9 @@ export default function LandingPage() {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400 font-medium">
+          <Link href="/showroom" className="text-teal-400 hover:text-teal-300 font-semibold transition flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Showroom
+          </Link>
           <a href="#features" className="hover:text-white transition">Features</a>
           <a href="#pricing" className="hover:text-white transition">Pricing</a>
           <a href="#persistent" className="hover:text-white transition">24/7 Agent</a>
