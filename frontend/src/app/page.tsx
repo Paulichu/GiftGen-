@@ -90,7 +90,9 @@ export default function LandingPage() {
       <div className="w-full bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-indigo-900/40 border-b border-indigo-500/20 py-2.5 px-4 text-center text-xs sm:text-sm text-indigo-200 flex items-center justify-center gap-2">
         <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
         <span>Describe your idea. Build websites &amp; full-stack apps with multi-agent AI.</span>
-        <span className="hidden sm:inline font-semibold text-white ml-1">Frontend + backend included.</span>
+        <Link href="/showroom" className="ml-2 font-bold text-teal-300 hover:text-white underline inline-flex items-center gap-1">
+          <span>Odwiedź Showroom Produktów &amp; Dema IP →</span>
+        </Link>
       </div>
 
       {/* Navigation */}
