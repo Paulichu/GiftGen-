@@ -6,6 +6,15 @@ export interface TriText {
   de: string;
 }
 
+export interface PricingTier {
+  id: string;
+  name: string;
+  price: string;
+  billing: TriText;
+  description: TriText;
+  highlights: TriText[];
+}
+
 export interface ProductItem {
   id: string;
   title: string;
@@ -17,6 +26,12 @@ export interface ProductItem {
   tagline: TriText;
   description: TriText;
   features: TriText[];
+  pricingTiers?: PricingTier[];
+  architectureSpecs?: {
+    layer: string;
+    tech: string;
+    detail: string;
+  }[];
   primaryVideoId: string;
   relatedVideoIds?: string[];
 }
@@ -32,23 +47,146 @@ export interface VideoItem {
 }
 
 export const MONETIZATION_INFO = {
-  seller: "Ojjja Tech IP / Incanto Soma",
-  registeredCity: "Monheim am Rhein, NRW, Germany",
-  contactEmail: "admin@ojjja.site",
+  founder: "Paulina Jakubowska",
+  role: "Founder & Lead Architect",
+  company: "INCANTO / OJJJA.XYZ",
+  seller: "Paulina Jakubowska • INCANTO / OJJJA.XYZ",
+  registeredCity: "NRW, Germany (100% remote, online call / Teams)",
+  replyToEmail: "compliance@ojjja.site",
+  contactEmail: "compliance@ojjja.site",
+  directEmail: "mepaulaj@gmail.com",
+  ipEmail: "ip@ojjja.site",
   supportEmail: "ip@ojjja.site",
   paypalEmail: "admin@ojjja.site",
+  whatsapp: "+49 152 10200523",
+  whatsappUrl: "https://wa.me/4915210200523",
+  linkedin: "https://www.linkedin.com/in/paulina-jakubowska-65712b163",
   crypto: {
     eth: "0x89ee3f2a2a7ddc9de821f93623aab58593cb1b59",
     btc: "bc1q3vkqn8mgnpvz9cj07scjpz65wn8j7fl9akp24p"
   },
   invoicingNote: {
-    pl: "Faktury VAT UE (Reverse Charge) dla firm oraz bezpośrednie płatności PayPal i krypto (ETH/BTC).",
-    en: "EU VAT Invoices (Reverse Charge) for businesses and direct PayPal & crypto (ETH/BTC) payments.",
-    de: "EU-USt-Rechnungen (Reverse Charge) für Unternehmen sowie direkte PayPal- und Krypto-Zahlungen (ETH/BTC)."
+    pl: "Faktury VAT UE (Reverse Charge) dla firm, bezpośredni kontakt WhatsApp/Teams, PayPal i krypto (ETH/BTC).",
+    en: "EU VAT Invoices (Reverse Charge) for businesses, direct WhatsApp/Teams contact, PayPal & crypto (ETH/BTC).",
+    de: "EU-USt-Rechnungen (Reverse Charge) für Unternehmen, direkter WhatsApp/Teams-Kontakt, PayPal und Krypto (ETH/BTC)."
   }
 };
 
 export const PRODUCTS: ProductItem[] = [
+  {
+    id: "compliance-twin-2",
+    title: "Compliance Twin 2.0 — Autonomous AI Agent",
+    category: "compliance",
+    badge: {
+      pl: "Enterprise Offer 2026",
+      en: "Enterprise Offer 2026",
+      de: "Enterprise Offer 2026"
+    },
+    priceEur: 150000,
+    priceUsd: 160000,
+    period: "year",
+    tagline: {
+      pl: "Autonomiczny agent regulacyjny: EU AI Act, GDPR, HIPAA, ISO 27001, SOC 2 Ready.",
+      en: "Autonomous AI agent for regulatory obligations: EU AI Act, GDPR, HIPAA, ISO 27001, SOC 2 Ready.",
+      de: "Autonomer KI-Agent für regulatorische Vorgaben: EU AI Act, DSGVO, HIPAA, ISO 27001, SOC 2 Ready."
+    },
+    description: {
+      pl: "Cyfrowy bliźniak zgodności regulacyjnej inspirowany projektem Stanford Law School ComplianceTwin i walidowany przez COMBO. Autonomicznie czyta przepisy prawa, skanuje infrastrukturę IT w czasie rzeczywistym i generuje raporty dla regulatorów. Zmniejsza koszty audytów o 75% i chroni przed karami do 20 mln €.",
+      en: "Digital regulatory compliance twin inspired by Stanford Law School ComplianceTwin project & validated by COMBO. Reads regulations autonomously, scans IT infrastructure real-time, and generates regulator-ready PDF/Excel reports. Slashes compliance time/cost by 75% and solves €20M fines.",
+      de: "Digitaler Compliance-Zwilling inspiriert vom Stanford Law School ComplianceTwin-Projekt und validiert durch COMBO. Liest Vorschriften autonom, scannt IT-Infrastruktur in Echtzeit und erstellt behördenfertige Berichte. Senkt Zeit/Kosten um 75% und schützt vor Strafen bis 20 Mio. €."
+    },
+    features: [
+      { pl: "Działa w 100% STANDALONE (niepowiązany z innymi pakietami)", en: "Sold 100% STANDALONE to protect pricing", de: "100% STANDALONE-Architektur ohne Bundle-Zwang" },
+      { pl: "Backend: FastAPI + Multi-tenant z separacją schematów per klient", en: "Backend: FastAPI + Multi-tenant zero cross-leak schema", de: "Backend: FastAPI + Multi-tenant mandantensicher" },
+      { pl: "Baza: PostgreSQL + TimescaleDB + WORM niezmienny audit log", en: "DB: PostgreSQL + TimescaleDB + WORM immutable audit log", de: "DB: PostgreSQL + TimescaleDB + WORM unveränderlicher Audit-Log" },
+      { pl: "Skaner: Nuclei + Osquery + Prowler + ScoutSuite + dedykowane reguły AI Act", en: "Scanner: Nuclei + Osquery + Prowler + ScoutSuite + custom AI Act rules", de: "Scanner: Nuclei + Osquery + Prowler + ScoutSuite + KI-Regeln" },
+      { pl: "Silnik AI: DeepSeek / Claude + lokalna Llama 3 (RAG z lokalną rezydencją danych w UE)", en: "AI Engine: DeepSeek / Claude + Local Llama 3 + RAG (EU data residency)", de: "KI-Engine: DeepSeek / Claude + Lokale Llama 3 + RAG (EU-Datenresidenz)" },
+      { pl: "Bezpieczeństwo: AES-256 + PQC Kyber-like (odporność kwantowa, CNSA 2.0)", en: "Security: AES-256 + PQC Kyber-like quantum-resistant CNSA 2.0", de: "Sicherheit: AES-256 + PQC Kyber-like quantensicher CNSA 2.0" },
+      { pl: "Orkiestracja: Celery / Redis + Evidence Locker + Human-in-the-loop", en: "Orchestration: Celery / Redis + Evidence Locker + Human-in-the-loop approvals", de: "Orchestrierung: Celery / Redis + Evidence Locker + Freigabeschleife" },
+      { pl: "Wdrożenie: AWS / Azure / GCP lub On-Premise dla banków i fintechów z umową DPA", en: "Hosting: AWS / Azure / GCP or On-Premises for banking with custom DPA", de: "Hosting: AWS / Azure / GCP oder On-Premise für Banken inkl. ADV" }
+    ],
+    pricingTiers: [
+      {
+        id: "starter",
+        name: "Starter",
+        price: "€150,000 / year",
+        billing: { pl: "rocznie", en: "per year", de: "pro Jahr" },
+        description: {
+          pl: "1 framework regulacyjny (np. samo GDPR lub EU AI Act), do 5 000 monitorowanych zasobów, podstawowy kokpit.",
+          en: "1 regulatory framework (e.g. GDPR only), 5k assets, basic dashboard.",
+          de: "1 Regelwerk (z. B. nur DSGVO), 5.000 Assets, Basis-Dashboard."
+        },
+        highlights: [
+          { pl: "1 framework (np. GDPR lub AI Act)", en: "1 framework (e.g. GDPR)", de: "1 Regelwerk (z. B. DSGVO)" },
+          { pl: "Do 5 000 zasobów IT", en: "5k assets covered", de: "Bis zu 5.000 Assets" },
+          { pl: "Podstawowy kokpit analityczny", en: "Basic dashboard", de: "Basis-Dashboard" }
+        ]
+      },
+      {
+        id: "growth",
+        name: "Growth",
+        price: "€350,000 / year",
+        billing: { pl: "rocznie", en: "per year", de: "pro Jahr" },
+        description: {
+          pl: "3 frameworki (GDPR + EU AI Act + NIS2 / ISO 27001), 25 000 zasobów, integracje Jira/Slack, SLA 24h.",
+          en: "3 regulatory frameworks, 25k assets, Jira/Slack integrations, 24h SLA.",
+          de: "3 Regelwerke, 25.000 Assets, Jira/Slack-Integrationen, 24h SLA."
+        },
+        highlights: [
+          { pl: "3 frameworki regulacyjne", en: "3 frameworks", de: "3 Regelwerke" },
+          { pl: "Do 25 000 zasobów IT", en: "25k assets covered", de: "Bis zu 25.000 Assets" },
+          { pl: "Integracje Jira + Slack + alerty", en: "Jira / Slack integrations", de: "Jira / Slack-Integrationen" },
+          { pl: "Gwarantowane SLA 24h", en: "24h SLA response", de: "24h SLA-Reaktionszeit" }
+        ]
+      },
+      {
+        id: "enterprise-perpetual",
+        name: "Enterprise Perpetual (IP Transfer)",
+        price: "$1,000,000",
+        billing: { pl: "jednorazowo (wieczysta licencja)", en: "one-time (perpetual)", de: "einmalig (unbefristet)" },
+        description: {
+          pl: "Pełny kod źródłowy + przeniesienie praw IP + pełna dokumentacja techniczna + 2h dedykowanego szkolenia zespołu IT + 30 dni wdrożenia i wsparcia + wieczysta licencja komercyjna. Opcjonalne wsparcie/aktualizacje: $150k/rok.",
+          en: "Full source code + full IP transfer + documentation + 2h IT team training + 30-day post-deployment support + perpetual commercial licence. Optional $150k/year updates/support.",
+          de: "Vollständiger Quellcode + IP-Übertragung + Dokumentation + 2h Team-Schulung + 30 Tage Bereitstellungssupport + unbefristete Lizenz. Optional $150k/Jahr Support."
+        },
+        highlights: [
+          { pl: "Kompletny kod źródłowy na własność (Full IP)", en: "Full source code + IP ownership", de: "Kompletter Quellcode + IP-Eigentum" },
+          { pl: "30 dni dedykowanego wsparcia po wdrożeniu", en: "30-day post-deployment support", de: "30 Tage dedizierter Bereitstellungssupport" },
+          { pl: "2h sesja szkoleniowa online dla zespołu IT", en: "2h online IT training session", de: "2h Online-Schulung für das IT-Team" },
+          { pl: "Możliwość 100% self-host on-premise", en: "100% self-hosted on-premise capable", de: "100% On-Premise Self-Hosting fähig" }
+        ]
+      },
+      {
+        id: "enterprise-saas",
+        name: "Enterprise SaaS",
+        price: "$500,000 / year",
+        billing: { pl: "rocznie", en: "per year", de: "pro Jahr" },
+        description: {
+          pl: "Wszystkie frameworki (AI Act, GDPR, HIPAA, ISO 27001, SOC 2), nielimitowane zasoby, opcja wdrożenia on-premise, dedykowana umowa DPA, gwarantowane SLA 4h, kryptograficzny evidence locker, human-in-the-loop.",
+          en: "All frameworks, unlimited assets, on-prem option, custom DPA, 4h SLA, immutable evidence locker, human-in-the-loop approvals.",
+          de: "Alle Regelwerke, unbegrenzte Assets, On-Premise-Option, DPA/ADV-Vertrag, 4h SLA, Evidence Locker, Freigabeschleife."
+        },
+        highlights: [
+          { pl: "Wszystkie frameworki bez limitu zasobów", en: "All frameworks, unlimited assets", de: "Alle Regelwerke, unbegrenzte Assets" },
+          { pl: "Rygorystyczne SLA 4h dla banków i enterprise", en: "Rigorous 4h SLA", de: "Strenges 4h Enterprise-SLA" },
+          { pl: "Evidence locker z niezmiennym audytem WORM", en: "Cryptographic evidence locker", de: "Kryptografischer Evidence Locker" },
+          { pl: "Dedykowana umowa powierzenia danych (DPA)", en: "Dedicated corporate DPA", de: "Dedizierter ADV/DPA-Vertrag" }
+        ]
+      }
+    ],
+    architectureSpecs: [
+      { layer: "Frontend", tech: "React PWA + RBAC UI", detail: "Added roles: CISO/DPO/Auditor/Dev, ABAC policies" },
+      { layer: "Backend", tech: "FastAPI + Multi-tenant", detail: "Tenant isolation, per-client DB schema, zero cross-leak" },
+      { layer: "Database", tech: "PostgreSQL + TimescaleDB + WORM", detail: "Immutable audit log, TimescaleDB for scan history" },
+      { layer: "Scanner", tech: "Nuclei + Osquery + Prowler + ScoutSuite", detail: "Cloud scan (AWS/Azure/GCP), IaC, CVE, custom AI Act checks" },
+      { layer: "AI Engine", tech: "DeepSeek / Claude + Local Llama 3 + RAG", detail: "Local LLM option for EU data residency, RAG on AI Act/GDPR texts" },
+      { layer: "Security", tech: "AES-256 + PQC Kyber-like (Quantum Vault IP)", detail: "Post-quantum encryption, CNSA 2.0 compliant" },
+      { layer: "Orchestration", tech: "Celery / Redis + Evidence Locker", detail: "Encrypted evidence locker, human-in-the-loop approvals" },
+      { layer: "Hosting", tech: "AWS / Azure / GCP + On-Prem Option", detail: "On-prem for banks, DPA ready" }
+    ],
+    primaryVideoId: "SQLkpb5MQ1M",
+    relatedVideoIds: ["C5rWMaBir6g"]
+  },
   {
     id: "neuro-soma-os",
     title: "INCANTO NEURO-SOMA OS",
@@ -79,37 +217,6 @@ export const PRODUCTS: ProductItem[] = [
     ],
     primaryVideoId: "3Y0uV3A7pXE",
     relatedVideoIds: ["auegpSVPblc", "rJDppY2OWvI", "eI7d2onteHA"]
-  },
-  {
-    id: "compliance-twin",
-    title: "Compliance Twin Ultra V3",
-    category: "compliance",
-    badge: {
-      pl: "Audyt EU AI Act",
-      en: "EU AI Act Audit",
-      de: "EU AI Act Audit"
-    },
-    priceEur: 1990,
-    priceUsd: 2150,
-    period: "one-time",
-    tagline: {
-      pl: "Cyfrowy bliźniak zgodności regulacyjnej: EU AI Act, NIS2, ISO 27001, GDPR.",
-      en: "Digital compliance twin for EU AI Act, NIS2, ISO 27001, and GDPR.",
-      de: "Digitaler Compliance-Zwilling für EU AI Act, NIS2, ISO 27001 und DSGVO."
-    },
-    description: {
-      pl: "Kompleksowa platforma do zarządzania ryzykiem prawnym i technicznym systemów sztucznej inteligencji w Unii Europejskiej z automatycznym generatorem raportów audytowych.",
-      en: "Comprehensive platform to manage legal and technical risk for AI systems in the European Union with automated audit report generation.",
-      de: "Umfassende Plattform zur Steuerung rechtlicher und technischer Risiken von KI-Systemen in der EU mit automatischer Audit-Berichterstellung."
-    },
-    features: [
-      { pl: "6-miesięczny wektor trendu scoringu zgodności", en: "6-month compliance score trend vector", de: "6-Monats-Compliance-Trendkurve" },
-      { pl: "Macierz 42 punktów kontrolnych NIS2 i EU AI Act", en: "42-point NIS2 and EU AI Act control matrix", de: "42-Punkte-Kontrollmatrix für NIS2 & EU AI Act" },
-      { pl: "Niezmienny audit trail z podpisem kryptograficznym", en: "Immutable audit trail with cryptographic signature", de: "Unveränderlicher Audit-Trail mit kryptografischer Signatur" },
-      { pl: "Gotowe szablony raportów dla organów nadzorczych", en: "Ready-to-file regulatory supervisory templates", de: "Behördenfertige Berichts-Templates" }
-    ],
-    primaryVideoId: "SQLkpb5MQ1M",
-    relatedVideoIds: ["C5rWMaBir6g"]
   },
   {
     id: "sovereign-terminal",
