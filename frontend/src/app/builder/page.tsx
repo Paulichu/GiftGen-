@@ -256,7 +256,9 @@ export default function BuilderPage() {
         {
           role: "agent",
           content: `🎉 Successfully compiled version ${codeGen.version_number} with ${
-            codeGen.engine === "cerebras" ? `Cerebras ${codeGen.model || ""}`.trim() : "the built-in template engine"
+            codeGen.engine && codeGen.engine !== "templates"
+              ? `${codeGen.engine}${codeGen.model ? ` (${codeGen.model})` : ""}`
+              : "the built-in template engine"
           }! Frontend and backend code is running live in your sandbox preview.`,
         },
       ]);
