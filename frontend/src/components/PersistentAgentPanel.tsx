@@ -215,7 +215,7 @@ export default function PersistentAgentPanel() {
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white mt-1 flex items-center gap-2">
               <Bot className="w-5 h-5 text-emerald-400 shrink-0" />
-              1 Agent Always-On — nie w przeglądarce (Telegram / WhatsApp 24/7)
+              Agent Always-On 24/7 — Telegram / WhatsApp / Web
             </h3>
           </div>
         </div>
@@ -464,7 +464,7 @@ export default function PersistentAgentPanel() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Persistent Chat ({channel.toUpperCase()})
             </span>
-            <span className="text-[10px] text-zinc-400 font-mono">Real Backend API</span>
+            <span className="text-[10px] text-zinc-400 font-mono">{HAS_REMOTE_BACKEND ? "Real Backend API" : "Local Engine (demo)"}</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 font-sans">
