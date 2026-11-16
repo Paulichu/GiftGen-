@@ -22,70 +22,137 @@ export const API_URL = IS_LOOPBACK ? "" : RAW_API_URL;
 export const HAS_REMOTE_BACKEND = API_URL.length > 0;
 
 /**
- * AI engine (Cerebras) plumbing.
+ * AI engine plumbing (Groq / Gemini / Cerebras).
  *
- * Calls go to the same-origin /api/llm route, which holds the key server side
- * (CEREBRAS_API_KEY) or forwards the key the user pasted in the AI Engine panel.
- * The key is never bundled into the client JS and never committed.
+ * Calls go to the same-origin /api/llm/ route, which holds the key server side
+ * or forwards the key the user pasted in the AI Engine panel. The key is never
+ * bundled into the client JS and never committed.
  */
-const LLM_KEY_STORAGE = "emergent_cerebras_key";
-const LLM_MODEL_STORAGE = "emergent_cerebras_model";
-export const LLM_PROVIDER = "cerebras";
-export const DEFAULT_LLM_MODEL = "gpt-oss-120b";
-export const LLM_MODELS = ["gpt-oss-120b", "qwen-3.8-27b"];
+const LLM_PROVIDER_STORAGE = "emergent_llm_provider";
+const LLM_MODEL_STORAGE = "emergent_llm_model";
+const LLM_KEY_PREFIX = "emergent_llm_key_";
 
-export function getStoredLlmKey(): string {
-  if (typeof window === "undefined") return "";
-  return (localStorage.getItem(LLM_KEY_STORAGE) || "").trim();
+export type LlmProviderId = "groq" | "gemini" | "cerebras";
+
+export interface LlmProviderInfo {
+  id: LlmProviderId;
+  label: string;
+  models: string[];
+  defaultModel: string;
+  configured: boolean;
+  freeTier: string;
+  consoleUrl: string;
 }
 
-export function setStoredLlmKey(key: string): void {
+export const FALLBACK_PROVIDERS: LlmProviderInfo[] = [
+  {
+    id: "groq",
+    label: "Groq",
+    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b"],
+    defaultModel: "openai/gpt-oss-120b",
+    configured: false,
+    freeTier: "Darmowy plan bez karty, limity zapytań na minutę i na dzień.",
+    consoleUrl: "https://console.groq.com/keys",
+  },
+  {
+    id: "gemini",
+    label: "Gemini",
+    models: ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"],
+    defaultModel: "gemini-2.5-flash",
+    configured: false,
+    freeTier: "Darmowy plan bez karty w Google AI Studio, dzienne limity zapytań.",
+    consoleUrl: "https://aistudio.google.com/apikey",
+  },
+  {
+    id: "cerebras",
+    label: "Cerebras",
+    models: ["gpt-oss-120b", "qwen-3.8-27b"],
+    defaultModel: "gpt-oss-120b",
+    configured: false,
+    freeTier: "Tylko trial: 5 $ na 30 dni po dodaniu karty. Brak stałego darmowego planu.",
+    consoleUrl: "https://cloud.cerebras.ai",
+  },
+];
+
+const DEFAULT_LLM_PROVIDER: LlmProviderId = "groq";
+
+export function getLlmProvider(): LlmProviderId {
+  if (typeof window === "undefined") return DEFAULT_LLM_PROVIDER;
+  const stored = localStorage.getItem(LLM_PROVIDER_STORAGE);
+  if (stored === "groq" || stored === "gemini" || stored === "cerebras") return stored;
+  return DEFAULT_LLM_PROVIDER;
+}
+
+export function setStoredLlmProvider(provider: LlmProviderId): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LLM_PROVIDER_STORAGE, provider);
+}
+
+export function getStoredLlmKey(provider: LlmProviderId = getLlmProvider()): string {
+  if (typeof window === "undefined") return "";
+  return (localStorage.getItem(LLM_KEY_PREFIX + provider) || "").trim();
+}
+
+export function setStoredLlmKey(key: string, provider: LlmProviderId = getLlmProvider()): void {
   if (typeof window === "undefined") return;
   const trimmed = key.trim();
-  if (trimmed) localStorage.setItem(LLM_KEY_STORAGE, trimmed);
-  else localStorage.removeItem(LLM_KEY_STORAGE);
+  if (trimmed) localStorage.setItem(LLM_KEY_PREFIX + provider, trimmed);
+  else localStorage.removeItem(LLM_KEY_PREFIX + provider);
 }
 
-export function getStoredLlmModel(): string {
-  if (typeof window === "undefined") return DEFAULT_LLM_MODEL;
-  return localStorage.getItem(LLM_MODEL_STORAGE) || DEFAULT_LLM_MODEL;
+export function providerDefaultModel(provider: LlmProviderId): string {
+  const meta = FALLBACK_PROVIDERS.find((p) => p.id === provider);
+  return meta?.defaultModel || "openai/gpt-oss-120b";
 }
 
-export function setStoredLlmModel(model: string): void {
+export function getStoredLlmModel(provider: LlmProviderId = getLlmProvider()): string {
+  if (typeof window === "undefined") return providerDefaultModel(provider);
+  const stored = localStorage.getItem(`${LLM_MODEL_STORAGE}_${provider}`);
+  return stored || providerDefaultModel(provider);
+}
+
+export function setStoredLlmModel(model: string, provider: LlmProviderId = getLlmProvider()): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(LLM_MODEL_STORAGE, model || DEFAULT_LLM_MODEL);
+  localStorage.setItem(`${LLM_MODEL_STORAGE}_${provider}`, model || providerDefaultModel(provider));
 }
 
 export interface LlmStatus {
   configured: boolean;
-  provider: string;
+  provider: LlmProviderId;
+  providerLabel: string;
   model: string;
-  models: string[];
+  providers: LlmProviderInfo[];
   hasLocalKey: boolean;
 }
 
 export async function getLlmStatus(): Promise<LlmStatus> {
-  const hasLocalKey = getStoredLlmKey().length > 0;
-  const fallback: LlmStatus = {
-    configured: hasLocalKey,
-    provider: LLM_PROVIDER,
-    model: getStoredLlmModel(),
-    models: LLM_MODELS,
-    hasLocalKey,
+  const provider = getLlmProvider();
+  const localKey = getStoredLlmKey(provider);
+  const withLocal = (list: LlmProviderInfo[]) =>
+    list.map((p) => ({ ...p, configured: p.configured || getStoredLlmKey(p.id).length > 0 }));
+
+  const build = (providers: LlmProviderInfo[]): LlmStatus => {
+    const active = providers.find((p) => p.id === provider) || providers[0];
+    return {
+      configured: Boolean(active?.configured || localKey),
+      provider,
+      providerLabel: active?.label || provider,
+      model: getStoredLlmModel(provider),
+      providers,
+      hasLocalKey: localKey.length > 0,
+    };
   };
+
   try {
     const res = await fetch("/api/llm/", { method: "GET", cache: "no-store" });
-    if (!res.ok) return fallback;
+    if (!res.ok) return build(FALLBACK_PROVIDERS);
     const data = await res.json();
-    return {
-      configured: Boolean(data.configured) || hasLocalKey,
-      provider: data.provider || LLM_PROVIDER,
-      model: getStoredLlmModel() || data.model || DEFAULT_LLM_MODEL,
-      models: Array.isArray(data.models) && data.models.length ? data.models : LLM_MODELS,
-      hasLocalKey,
-    };
+    const providers = Array.isArray(data?.providers) && data.providers.length
+      ? withLocal(data.providers as LlmProviderInfo[])
+      : withLocal(FALLBACK_PROVIDERS);
+    return build(providers);
   } catch {
-    return fallback;
+    return build(withLocal(FALLBACK_PROVIDERS));
   }
 }
 
@@ -100,14 +167,16 @@ interface LlmResult {
 }
 
 async function callLlm(task: LlmTask, payload: Record<string, unknown>): Promise<LlmResult> {
+  const provider = getLlmProvider();
   try {
     const res = await fetch("/api/llm/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         task,
-        api_key: getStoredLlmKey(),
-        model: getStoredLlmModel(),
+        provider,
+        api_key: getStoredLlmKey(provider),
+        model: getStoredLlmModel(provider),
         ...payload,
       }),
     });
@@ -131,7 +200,8 @@ async function callLlm(task: LlmTask, payload: Record<string, unknown>): Promise
 }
 
 function llmFallbackText(result: LlmResult): string {
-  if (result.code === "no_key") return "brak klucza Cerebras w panelu AI Engine";
+  const label = FALLBACK_PROVIDERS.find((p) => p.id === getLlmProvider())?.label || "AI";
+  if (result.code === "no_key") return `brak klucza ${label} w panelu AI Engine`;
   if (result.code === "no_route") return "proxy /api/llm niedostępny w tym buildzie (static export)";
   return result.error || "AI engine unavailable";
 }
@@ -703,7 +773,7 @@ export default function Home() {
           ? blueprint.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 4)
           : [];
         if (questions.length) {
-          return { needs_clarification: true, questions, engine: LLM_PROVIDER, model: llm.model || null };
+          return { needs_clarification: true, questions, engine: getLlmProvider(), model: llm.model || null };
         }
       } else if (pages.length) {
         return {
@@ -713,7 +783,7 @@ export default function Home() {
           data_models: models,
           api_endpoints: Array.isArray(blueprint.api_endpoints) ? blueprint.api_endpoints : [],
           features: Array.isArray(blueprint.features) ? blueprint.features : [],
-          engine: LLM_PROVIDER,
+          engine: getLlmProvider(),
           model: llm.model || null,
         };
       }
@@ -828,7 +898,7 @@ export const AGENT_CONFIG = {
       const llmFiles = normalizeLlmFiles(llm.data?.files);
       if (llmFiles.length) {
         generatedFiles = llmFiles;
-        engine = LLM_PROVIDER;
+        engine = getLlmProvider();
         model = llm.model || null;
       } else {
         llmNote = "Cerebras returned no usable files";
@@ -863,10 +933,10 @@ export const AGENT_CONFIG = {
     }
 
     const agent_logs: Array<{ agent: string; message: string; level: "info" | "success" | "warn" }> = [];
-    if (engine === LLM_PROVIDER) {
+    if (engine !== "templates") {
       agent_logs.push({
         agent: "Developer Agent",
-        message: `Wrote ${generatedFiles.length} files with Cerebras ${model || DEFAULT_LLM_MODEL}.`,
+        message: `Wrote ${generatedFiles.length} files with ${engine} (${model || "default model"}).`,
         level: "success",
       });
     } else {

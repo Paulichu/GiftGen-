@@ -1,13 +1,13 @@
 /**
- * Cerebras proxy for the 5-agent pipeline.
+ * LLM proxy for the 5-agent pipeline (Cerebras / Groq / Gemini).
  *
- * The browser never talks to Cerebras directly: the API key stays on the server
- * side (CEREBRAS_API_KEY env var) or, for a personal setup, is forwarded per
- * request from the browser's localStorage. Either way the key is never baked
- * into the client bundle or committed to the repository.
+ * The browser never talks to the provider directly: a key is read from the server
+ * env (CEREBRAS_API_KEY, GROQ_API_KEY, GEMINI_API_KEY) or forwarded per request
+ * from the browser's localStorage. Either way it never reaches the client bundle,
+ * the repository or the logs.
  *
- * GET  /api/llm  -> { configured, model, models, provider }
- * POST /api/llm  -> { ok, provider, model, data, usage } | { error, code }
+ * GET  /api/llm/  -> { providers: [...], defaultProvider }
+ * POST /api/llm/  -> { ok, provider, model, data, usage } | { error, code }
  */
 
 import { NextResponse } from "next/server";
@@ -15,12 +15,62 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
-const DEFAULT_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b";
-const AVAILABLE_MODELS = ["gpt-oss-120b", "qwen-3.8-27b"];
 const MAX_PROMPT_CHARS = 4000;
+const UPSTREAM_TIMEOUT_MS = 50000;
 
-type Task = "blueprint" | "code";
+type ProviderId = "groq" | "gemini" | "cerebras";
+
+interface ProviderConfig {
+  id: ProviderId;
+  label: string;
+  url: string;
+  envKey: string | undefined;
+  defaultModel: string;
+  models: string[];
+  /** Some OpenAI-compatible gateways reject max_completion_tokens. */
+  maxTokensParam: "max_completion_tokens" | "max_tokens";
+  /** Free tier reality, shown in the UI so nobody is surprised. */
+  freeTier: string;
+  consoleUrl: string;
+}
+
+const PROVIDERS: Record<ProviderId, ProviderConfig> = {
+  groq: {
+    id: "groq",
+    label: "Groq",
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    envKey: process.env.GROQ_API_KEY,
+    defaultModel: "openai/gpt-oss-120b",
+    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b"],
+    maxTokensParam: "max_completion_tokens",
+    freeTier: "Darmowy plan bez karty, limity zapytań na minutę i na dzień.",
+    consoleUrl: "https://console.groq.com/keys",
+  },
+  gemini: {
+    id: "gemini",
+    label: "Gemini",
+    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    envKey: process.env.GEMINI_API_KEY,
+    defaultModel: "gemini-2.5-flash",
+    models: ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"],
+    maxTokensParam: "max_tokens",
+    freeTier: "Darmowy plan bez karty w Google AI Studio, dzienne limity zapytań.",
+    consoleUrl: "https://aistudio.google.com/apikey",
+  },
+  cerebras: {
+    id: "cerebras",
+    label: "Cerebras",
+    url: "https://api.cerebras.ai/v1/chat/completions",
+    envKey: process.env.CEREBRAS_API_KEY,
+    defaultModel: "gpt-oss-120b",
+    models: ["gpt-oss-120b", "qwen-3.8-27b"],
+    maxTokensParam: "max_completion_tokens",
+    freeTier: "Tylko trial: 5 $ na 30 dni po dodaniu karty. Brak stałego darmowego planu.",
+    consoleUrl: "https://cloud.cerebras.ai",
+  },
+};
+
+const DEFAULT_PROVIDER: ProviderId = "groq";
 
 interface ChatMessage {
   role: "system" | "user";
@@ -31,12 +81,24 @@ function fail(error: string, status: number, code?: string) {
   return NextResponse.json({ error, code }, { status });
 }
 
+function resolveProvider(raw: unknown): ProviderId {
+  const id = String(raw || "").trim().toLowerCase();
+  if (id === "groq" || id === "gemini" || id === "cerebras") return id;
+  return DEFAULT_PROVIDER;
+}
+
 export async function GET() {
   return NextResponse.json({
-    provider: "cerebras",
-    configured: Boolean(process.env.CEREBRAS_API_KEY),
-    model: DEFAULT_MODEL,
-    models: AVAILABLE_MODELS,
+    defaultProvider: DEFAULT_PROVIDER,
+    providers: Object.values(PROVIDERS).map((p) => ({
+      id: p.id,
+      label: p.label,
+      models: p.models,
+      defaultModel: p.defaultModel,
+      configured: Boolean(p.envKey),
+      freeTier: p.freeTier,
+      consoleUrl: p.consoleUrl,
+    })),
   });
 }
 
@@ -112,6 +174,40 @@ function parseJsonContent(raw: string): unknown {
   }
 }
 
+async function callUpstream(
+  provider: ProviderConfig,
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  task: "blueprint" | "code",
+  jsonMode: boolean
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  const payload: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: task === "code" ? 0.3 : 0.5,
+    [provider.maxTokensParam]: task === "code" ? 6000 : 1600,
+  };
+  if (jsonMode) payload.response_format = { type: "json_object" };
+
+  try {
+    const res = await fetch(provider.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    return { res, text: await res.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(request: Request) {
   let body: any;
   try {
@@ -120,7 +216,7 @@ export async function POST(request: Request) {
     return fail("Invalid JSON body", 400, "bad_request");
   }
 
-  const task = body.task as Task;
+  const task = body.task as "blueprint" | "code";
   if (task !== "blueprint" && task !== "code") {
     return fail('task must be "blueprint" or "code"', 400, "bad_request");
   }
@@ -130,42 +226,30 @@ export async function POST(request: Request) {
     return fail("Prompt is too short", 400, "bad_request");
   }
 
-  const apiKey = String(process.env.CEREBRAS_API_KEY || body.api_key || "").trim();
+  const provider = PROVIDERS[resolveProvider(body.provider)];
+  const apiKey = String(provider.envKey || body.api_key || "").trim();
   if (!apiKey) {
     return fail(
-      "Brak klucza Cerebras. Wklej go w panelu AI Engine w builderze (albo ustaw CEREBRAS_API_KEY w Vercelu).",
+      `Brak klucza ${provider.label}. Wklej go w panelu AI Engine w builderze (albo ustaw ${provider.id.toUpperCase()}_API_KEY w Vercelu).`,
       400,
       "no_key"
     );
   }
 
-  const requested = String(body.model || "").trim();
-  const model = requested || DEFAULT_MODEL;
-
+  const model = String(body.model || "").trim() || provider.defaultModel;
   const messages = task === "blueprint" ? blueprintMessages(prompt) : codeMessages(prompt, body.blueprint || {});
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50000);
 
   try {
-    const upstream = await fetch(CEREBRAS_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: task === "code" ? 0.3 : 0.5,
-        max_completion_tokens: task === "code" ? 6000 : 1600,
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
+    // Gemini's OpenAI-compatible layer rejects response_format on some models,
+    // so retry once without it if the gateway complains.
+    let attempt = await callUpstream(provider, apiKey, model, messages, task, true);
+    if (!attempt.res.ok && attempt.res.status === 400 && /response_format|json/i.test(attempt.text)) {
+      attempt = await callUpstream(provider, apiKey, model, messages, task, false);
+    }
 
-    const text = await upstream.text();
+    const { res, text } = attempt;
 
-    if (!upstream.ok) {
+    if (!res.ok) {
       let detail = text.slice(0, 400);
       try {
         const errJson = JSON.parse(text);
@@ -173,25 +257,30 @@ export async function POST(request: Request) {
       } catch {
         /* keep raw text */
       }
-      if (upstream.status === 401) {
-        return fail("Cerebras odrzucił klucz (401). Sprawdź, czy klucz jest poprawny i aktywny.", 401, "bad_key");
+      const looksLikeKeyProblem = /api[ _-]?key|unauthor|invalid.*key/i.test(detail);
+      if (res.status === 401 || res.status === 403 || (res.status === 400 && looksLikeKeyProblem)) {
+        return fail(
+          `${provider.label} odrzucił klucz (${res.status}). Sprawdź, czy klucz jest poprawny i aktywny.`,
+          401,
+          "bad_key"
+        );
       }
-      if (upstream.status === 429) {
-        return fail(`Limit darmowego planu Cerebras osiągnięty. Spróbuj za chwilę. (${detail})`, 429, "rate_limit");
+      if (res.status === 429) {
+        return fail(`Limit darmowego planu ${provider.label} osiągnięty. Spróbuj za chwilę. (${detail})`, 429, "rate_limit");
       }
-      return fail(`Cerebras error ${upstream.status}: ${detail}`, 502, "upstream_error");
+      return fail(`${provider.label} error ${res.status}: ${detail}`, 502, "upstream_error");
     }
 
     let payload: any;
     try {
       payload = JSON.parse(text);
     } catch {
-      return fail("Cerebras returned a non-JSON response", 502, "bad_upstream_response");
+      return fail(`${provider.label} returned a non-JSON response`, 502, "bad_upstream_response");
     }
 
     const content = payload?.choices?.[0]?.message?.content;
     if (!content || typeof content !== "string") {
-      return fail("Cerebras returned an empty completion", 502, "empty_completion");
+      return fail(`${provider.label} returned an empty completion`, 502, "empty_completion");
     }
 
     let data: unknown;
@@ -203,17 +292,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      provider: "cerebras",
+      provider: provider.id,
       model: payload?.model || model,
       data,
       usage: payload?.usage || null,
     });
   } catch (err: any) {
     if (err?.name === "AbortError") {
-      return fail("Cerebras przekroczył limit czasu (50 s). Spróbuj krótszego promptu.", 504, "timeout");
+      return fail(`${provider.label} przekroczył limit czasu (50 s). Spróbuj krótszego promptu.`, 504, "timeout");
     }
-    return fail(`Nie udało się połączyć z Cerebras: ${err?.message || "network error"}`, 502, "network_error");
-  } finally {
-    clearTimeout(timeout);
+    return fail(`Nie udało się połączyć z ${provider.label}: ${err?.message || "network error"}`, 502, "network_error");
   }
 }
