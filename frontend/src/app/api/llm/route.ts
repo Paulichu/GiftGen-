@@ -145,6 +145,9 @@ Rules:
 - 3 to 6 files, always include one Next.js App Router page (app/page.tsx) and one FastAPI module (backend/routes.py).
 - Frontend files are React + TypeScript + Tailwind CSS (no imports outside next/react).
 - Backend files are Python 3.11 with FastAPI.
+- Call the backend through relative paths (/api/...). Never hardcode http://localhost or any host.
+- Next.js 14 App Router: use <Link href="/x">text</Link> with no nested <a>, and put "use client" at the top when the file uses hooks or handlers.
+- Every page must render real UI for the blueprint's main use case, not a placeholder.
 - Write working, complete, self-contained code. No placeholders like "TODO" or "...".
 - Escape newlines correctly inside JSON strings. No markdown fences, no prose outside JSON.`,
     },
@@ -172,6 +175,42 @@ function parseJsonContent(raw: string): unknown {
     if (start === -1 || end <= start) throw new Error("Model did not return JSON");
     return JSON.parse(cleaned.slice(start, end + 1));
   }
+}
+
+/** Some models emit an array as one quoted string; split and clean those. */
+function cleanStringArray(input: unknown, limit = 6): string[] {
+  if (!Array.isArray(input)) return [];
+  const out: string[] = [];
+  for (const item of input) {
+    if (typeof item !== "string") continue;
+    for (const piece of item.split(/"\s*,\s*"|\n/)) {
+      const cleaned = piece.replace(/^[\s"'\[]+|[\s"'\]]+$/g, "").trim();
+      if (cleaned.length > 1 && !out.includes(cleaned)) out.push(cleaned);
+    }
+  }
+  return out.slice(0, limit);
+}
+
+function sanitizeBlueprint(raw: any) {
+  if (!raw || typeof raw !== "object") return null;
+  const pages = Array.isArray(raw.pages)
+    ? raw.pages.filter((p: any) => p && typeof p === "object" && typeof p.name === "string").slice(0, 6)
+    : [];
+  const models = Array.isArray(raw.data_models)
+    ? raw.data_models.filter((m: any) => m && typeof m === "object" && typeof m.name === "string").slice(0, 8)
+    : [];
+  const endpoints = Array.isArray(raw.api_endpoints)
+    ? raw.api_endpoints.filter((e: any) => e && typeof e === "object" && typeof e.path === "string").slice(0, 10)
+    : [];
+  return {
+    needs_clarification: Boolean(raw.needs_clarification),
+    questions: cleanStringArray(raw.questions, 4),
+    summary: typeof raw.summary === "string" ? raw.summary.slice(0, 300) : "",
+    pages,
+    data_models: models,
+    api_endpoints: endpoints,
+    features: cleanStringArray(raw.features, 6),
+  };
 }
 
 async function callUpstream(
@@ -288,6 +327,12 @@ export async function POST(request: Request) {
       data = parseJsonContent(content);
     } catch {
       return fail("Model did not return valid JSON. Try again or switch the model.", 502, "invalid_model_json");
+    }
+
+    if (task === "blueprint") {
+      const clean = sanitizeBlueprint(data);
+      if (!clean) return fail("Model returned an unusable blueprint. Try again.", 502, "invalid_model_json");
+      data = clean;
     }
 
     return NextResponse.json({
