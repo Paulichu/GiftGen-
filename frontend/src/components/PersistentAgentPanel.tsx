@@ -18,7 +18,7 @@ import {
   CalendarCheck
 } from "lucide-react";
 import { isNative } from "@/lib/capacitor";
-import { API_URL, checkHealth, sendToPersistentAgent } from "@/lib/api";
+import { API_URL, HAS_REMOTE_BACKEND, checkHealth, sendToPersistentAgent } from "@/lib/api";
 
 interface ChatMessage {
   id: string;
@@ -84,7 +84,7 @@ export default function PersistentAgentPanel() {
     setIsCheckingBackend(true);
     try {
       const data = await checkHealth();
-      if (data && data.status === "ok") {
+      if (data && (data.status === "ok" || data.status === "standalone")) {
         setBackendOnline(true);
       } else {
         setBackendOnline(false);
@@ -226,12 +226,12 @@ export default function PersistentAgentPanel() {
             {backendOnline ? (
               <span className="text-emerald-400 flex items-center gap-1 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                🟢 Backend online
+                {HAS_REMOTE_BACKEND ? "🟢 Backend online" : "🟢 Standalone Engine (local)"}
               </span>
             ) : (
               <span className="text-rose-400 flex items-center gap-1 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                🔴 Backend offline
+                {HAS_REMOTE_BACKEND ? "🔴 Backend offline" : "🔴 Engine nieaktywny"}
               </span>
             )}
             <button
@@ -329,8 +329,8 @@ export default function PersistentAgentPanel() {
               </button>
             </label>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-300 break-all flex items-center justify-between">
-              <span>{API_URL}</span>
-              <span className="text-[10px] text-zinc-500">GET /health</span>
+              <span>{HAS_REMOTE_BACKEND ? API_URL : "Standalone mode — wszystko działa w przeglądarce (bez serwera i bez bazy)"}</span>
+              <span className="text-[10px] text-zinc-500">{HAS_REMOTE_BACKEND ? "GET /health" : "local"}</span>
             </div>
           </div>
 
@@ -344,7 +344,13 @@ export default function PersistentAgentPanel() {
               {copiedWebhook && <span className="text-[11px] text-emerald-400">Skopiowano!</span>}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+            {!HAS_REMOTE_BACKEND && (
+              <p className="text-[11px] text-zinc-500 leading-relaxed">
+                Webhooki Telegram / WhatsApp wymagają hostowanego backendu. W trybie standalone agent odpowiada
+                lokalnie w panelu poniżej — logika rezerwacji, dostępności i anulowania działa w pełni.
+              </p>
+            )}
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono ${HAS_REMOTE_BACKEND ? "" : "hidden"}`}>
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 flex items-center justify-between">
                 <span className="truncate text-zinc-300 pr-2">{getWebhookUrl("telegram")}</span>
                 <button
