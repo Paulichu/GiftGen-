@@ -142,7 +142,7 @@ Reply with a single JSON object and nothing else. Exactly this shape:
 }
 
 Rules:
-- 3 to 6 files, always include one Next.js App Router page (app/page.tsx) and one FastAPI module (backend/routes.py).
+- 3 to 5 files, always include one Next.js App Router page (app/page.tsx) and one FastAPI module (backend/routes.py). Keep each file under 90 lines.
 - Frontend files are React + TypeScript + Tailwind CSS (no imports outside next/react).
 - Backend files are Python 3.11 with FastAPI.
 - Call the backend through relative paths (/api/...). Never hardcode http://localhost or any host.
@@ -175,6 +175,37 @@ function parseJsonContent(raw: string): unknown {
     if (start === -1 || end <= start) throw new Error("Model did not return JSON");
     return JSON.parse(cleaned.slice(start, end + 1));
   }
+}
+
+/**
+ * Large code replies are sometimes cut off mid-JSON. Salvage every complete
+ * {path, content} pair instead of throwing the whole generation away.
+ */
+function salvageFiles(raw: string): { path: string; content: string }[] {
+  const out: { path: string; content: string }[] = [];
+  const re = /"path"\s*:\s*"([^"]+)"\s*,\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(raw)) !== null) {
+    try {
+      const content = JSON.parse(`"${match[2]}"`);
+      if (match[1] && content && content.length > 20) out.push({ path: match[1], content });
+    } catch {
+      /* skip unparsable pair */
+    }
+  }
+  // also handle the reversed key order: content first, then path
+  const reverseRe = /"content"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"path"\s*:\s*"([^"]+)"/g;
+  while ((match = reverseRe.exec(raw)) !== null) {
+    try {
+      const content = JSON.parse(`"${match[1]}"`);
+      if (match[2] && content && content.length > 20 && !out.some((f) => f.path === match![2])) {
+        out.push({ path: match[2], content });
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
 }
 
 /** Some models emit an array as one quoted string; split and clean those. */
@@ -227,9 +258,12 @@ async function callUpstream(
     model,
     messages,
     temperature: task === "code" ? 0.3 : 0.5,
-    [provider.maxTokensParam]: task === "code" ? 6000 : 1600,
+    [provider.maxTokensParam]: task === "code" ? 8000 : 1600,
   };
   if (jsonMode) payload.response_format = { type: "json_object" };
+  // gpt-oss models spend most of their budget on hidden reasoning; keep it short so
+  // large JSON replies are not truncated and free tiers are not burned through.
+  if (provider.id !== "gemini") payload.reasoning_effort = task === "code" ? "low" : "medium";
 
   try {
     const res = await fetch(provider.url, {
@@ -317,7 +351,8 @@ export async function POST(request: Request) {
       return fail(`${provider.label} returned a non-JSON response`, 502, "bad_upstream_response");
     }
 
-    const content = payload?.choices?.[0]?.message?.content;
+    const choice = payload?.choices?.[0];
+    const content = choice?.message?.content;
     if (!content || typeof content !== "string") {
       return fail(`${provider.label} returned an empty completion`, 502, "empty_completion");
     }
@@ -325,14 +360,61 @@ export async function POST(request: Request) {
     let data: unknown;
     try {
       data = parseJsonContent(content);
-    } catch {
-      return fail("Model did not return valid JSON. Try again or switch the model.", 502, "invalid_model_json");
+    } catch (parseError) {
+      if (task === "code") {
+        const salvaged = salvageFiles(content);
+        if (salvaged.length >= 2) {
+          data = { files: salvaged, notes: "recovered from a truncated reply" };
+        }
+      }
+      // One focused retry: ask for a smaller bundle instead of giving up.
+      if (data === undefined && task === "code") {
+        const shorter: ChatMessage[] = [
+          ...messages,
+          { role: "user", content: "Twój poprzedni JSON był ucięty. Zwróć ten sam obiekt JSON ponownie, ale maksymalnie 4 pliki i każdy plik krótki (do 60 linii). Tylko JSON." },
+        ];
+        const retry = await callUpstream(provider, apiKey, model, shorter, task, true);
+        if (retry.res.ok) {
+          const retryContent = (() => {
+            try {
+              return JSON.parse(retry.text)?.choices?.[0]?.message?.content as string | undefined;
+            } catch {
+              return undefined;
+            }
+          })();
+          if (retryContent) {
+            try {
+              data = parseJsonContent(retryContent);
+            } catch {
+              const salvaged = salvageFiles(retryContent);
+              if (salvaged.length >= 2) data = { files: salvaged, notes: "recovered on retry" };
+            }
+          }
+        }
+      }
+      if (data === undefined) {
+        const truncated = choice?.finish_reason === "length";
+        return fail(
+          truncated
+            ? "Model uciął odpowiedź (limit tokenów). Spróbuj krótszego promptu albo mniejszego modelu."
+            : "Model did not return valid JSON. Try again or switch the model.",
+          502,
+          truncated ? "truncated" : "invalid_model_json"
+        );
+      }
     }
 
     if (task === "blueprint") {
       const clean = sanitizeBlueprint(data);
       if (!clean) return fail("Model returned an unusable blueprint. Try again.", 502, "invalid_model_json");
       data = clean;
+    }
+
+    if (task === "code") {
+      const files = (data as any)?.files;
+      if (!Array.isArray(files) || files.length === 0) {
+        return fail("Model nie zwrócił żadnych plików. Spróbuj ponownie.", 502, "no_files");
+      }
     }
 
     return NextResponse.json({
