@@ -13,8 +13,13 @@
 
 const RAW_API_URL = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/+$/, "");
 
-export const API_URL = RAW_API_URL;
-export const HAS_REMOTE_BACKEND = RAW_API_URL.length > 0;
+// A localhost / loopback URL can never be reached from a deployed site (and would
+// be blocked as mixed content over https), so treat it as "no backend configured"
+// and run fully in standalone mode instead of firing doomed requests.
+const IS_LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$)/i.test(RAW_API_URL);
+
+export const API_URL = IS_LOOPBACK ? "" : RAW_API_URL;
+export const HAS_REMOTE_BACKEND = API_URL.length > 0;
 
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
