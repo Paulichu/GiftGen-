@@ -21,6 +21,150 @@ const IS_LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$
 export const API_URL = IS_LOOPBACK ? "" : RAW_API_URL;
 export const HAS_REMOTE_BACKEND = API_URL.length > 0;
 
+/**
+ * AI engine (Cerebras) plumbing.
+ *
+ * Calls go to the same-origin /api/llm route, which holds the key server side
+ * (CEREBRAS_API_KEY) or forwards the key the user pasted in the AI Engine panel.
+ * The key is never bundled into the client JS and never committed.
+ */
+const LLM_KEY_STORAGE = "emergent_cerebras_key";
+const LLM_MODEL_STORAGE = "emergent_cerebras_model";
+export const LLM_PROVIDER = "cerebras";
+export const DEFAULT_LLM_MODEL = "gpt-oss-120b";
+export const LLM_MODELS = ["gpt-oss-120b", "qwen-3.8-27b"];
+
+export function getStoredLlmKey(): string {
+  if (typeof window === "undefined") return "";
+  return (localStorage.getItem(LLM_KEY_STORAGE) || "").trim();
+}
+
+export function setStoredLlmKey(key: string): void {
+  if (typeof window === "undefined") return;
+  const trimmed = key.trim();
+  if (trimmed) localStorage.setItem(LLM_KEY_STORAGE, trimmed);
+  else localStorage.removeItem(LLM_KEY_STORAGE);
+}
+
+export function getStoredLlmModel(): string {
+  if (typeof window === "undefined") return DEFAULT_LLM_MODEL;
+  return localStorage.getItem(LLM_MODEL_STORAGE) || DEFAULT_LLM_MODEL;
+}
+
+export function setStoredLlmModel(model: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LLM_MODEL_STORAGE, model || DEFAULT_LLM_MODEL);
+}
+
+export interface LlmStatus {
+  configured: boolean;
+  provider: string;
+  model: string;
+  models: string[];
+  hasLocalKey: boolean;
+}
+
+export async function getLlmStatus(): Promise<LlmStatus> {
+  const hasLocalKey = getStoredLlmKey().length > 0;
+  const fallback: LlmStatus = {
+    configured: hasLocalKey,
+    provider: LLM_PROVIDER,
+    model: getStoredLlmModel(),
+    models: LLM_MODELS,
+    hasLocalKey,
+  };
+  try {
+    const res = await fetch("/api/llm/", { method: "GET", cache: "no-store" });
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return {
+      configured: Boolean(data.configured) || hasLocalKey,
+      provider: data.provider || LLM_PROVIDER,
+      model: getStoredLlmModel() || data.model || DEFAULT_LLM_MODEL,
+      models: Array.isArray(data.models) && data.models.length ? data.models : LLM_MODELS,
+      hasLocalKey,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+type LlmTask = "blueprint" | "code";
+
+interface LlmResult {
+  ok: boolean;
+  data?: any;
+  model?: string;
+  error?: string;
+  code?: string;
+}
+
+async function callLlm(task: LlmTask, payload: Record<string, unknown>): Promise<LlmResult> {
+  try {
+    const res = await fetch("/api/llm/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task,
+        api_key: getStoredLlmKey(),
+        model: getStoredLlmModel(),
+        ...payload,
+      }),
+    });
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok || !data || data.ok !== true) {
+      return {
+        ok: false,
+        error: data?.error || `AI engine error (HTTP ${res.status})`,
+        code: data?.code || (res.status === 404 ? "no_route" : "http_error"),
+      };
+    }
+    return { ok: true, data: data.data, model: data.model };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "AI engine unreachable", code: "network_error" };
+  }
+}
+
+function llmFallbackText(result: LlmResult): string {
+  if (result.code === "no_key") return "brak klucza Cerebras w panelu AI Engine";
+  if (result.code === "no_route") return "proxy /api/llm niedostępny w tym buildzie (static export)";
+  return result.error || "AI engine unavailable";
+}
+
+function fileCategory(path: string): "frontend" | "backend" | "database" {
+  const p = path.toLowerCase();
+  if (p.startsWith("backend/") || p.endsWith(".py") || p.includes("/api/") || p.startsWith("api/")) return "backend";
+  if (p.includes("schema") || p.includes("migration") || p.includes("model.py")) return "database";
+  return "frontend";
+}
+
+function fileLanguage(path: string): string {
+  if (path.endsWith(".py")) return "python";
+  if (path.endsWith(".json")) return "json";
+  if (path.endsWith(".md")) return "markdown";
+  if (path.endsWith(".css")) return "css";
+  return "typescript";
+}
+
+function normalizeLlmFiles(raw: any): LocalFile[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f) => f && typeof f.path === "string" && typeof f.content === "string")
+    .filter((f) => f.content.trim().length > 20 && !f.path.includes(".."))
+    .slice(0, 8)
+    .map((f) => ({
+      path: String(f.path).replace(/^\/+/, "").slice(0, 120),
+      category: fileCategory(String(f.path)),
+      language: fileLanguage(String(f.path)),
+      content: String(f.content),
+    }));
+}
+
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("emergent_token") || "demo-token-commander-paulina";
@@ -373,7 +517,7 @@ export async function sendToPersistentAgent({
 /* Local fallback engine                                               */
 /* ------------------------------------------------------------------ */
 
-function handleLocalFallback(path: string, options: RequestInit = {}): any {
+async function handleLocalFallback(path: string, options: RequestInit = {}): Promise<any> {
   const method = (options.method || "GET").toUpperCase();
   const body = options.body ? safeParse<any>(options.body as string, {}) : {};
   const projects = getLocalProjects();
@@ -549,6 +693,34 @@ export default function Home() {
   if (path === "/api/generate-blueprint") {
     const prompt = (body.prompt || "").trim();
 
+    const llm = await callLlm("blueprint", { prompt });
+    if (llm.ok && llm.data) {
+      const blueprint = llm.data;
+      const pages = Array.isArray(blueprint.pages) ? blueprint.pages : [];
+      const models = Array.isArray(blueprint.data_models) ? blueprint.data_models : [];
+      if (blueprint.needs_clarification) {
+        const questions = Array.isArray(blueprint.questions)
+          ? blueprint.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 4)
+          : [];
+        if (questions.length) {
+          return { needs_clarification: true, questions, engine: LLM_PROVIDER, model: llm.model || null };
+        }
+      } else if (pages.length) {
+        return {
+          needs_clarification: false,
+          summary: blueprint.summary || "",
+          pages,
+          data_models: models,
+          api_endpoints: Array.isArray(blueprint.api_endpoints) ? blueprint.api_endpoints : [],
+          features: Array.isArray(blueprint.features) ? blueprint.features : [],
+          engine: LLM_PROVIDER,
+          model: llm.model || null,
+        };
+      }
+    }
+
+    const llmError = llm.ok ? "Cerebras returned an unusable blueprint" : llmFallbackText(llm);
+
     if (prompt.split(/\s+/).filter(Boolean).length < 4) {
       return {
         needs_clarification: true,
@@ -557,6 +729,8 @@ export default function Home() {
           "Jakie encje mają być modelowane: klienci, rezerwacje, usługi, płatności?",
           "Czy potrzebne jest logowanie i płatności online, czy wystarczy formularz rezerwacji?",
         ],
+        engine: "templates",
+        fallback_reason: llmError,
       };
     }
 
@@ -571,6 +745,8 @@ export default function Home() {
         { name: "Booking", fields: ["id", "time", "service", "status"] },
       ],
       features: ["Telegram 24/7 Bot", "WhatsApp Bot", "Instant confirmation"],
+      engine: "templates",
+      fallback_reason: llmError,
     };
   }
 
@@ -579,7 +755,7 @@ export default function Home() {
     const projectId = body.project_id;
     const idx = projects.findIndex((p) => p.id === projectId);
 
-    const generatedFiles: LocalFile[] = [
+    let generatedFiles: LocalFile[] = [
       {
         path: "app/page.tsx",
         category: "frontend",
@@ -643,6 +819,24 @@ export const AGENT_CONFIG = {
       },
     ];
 
+    let engine = "templates";
+    let model: string | null = null;
+    let llmNote: string | null = null;
+
+    const llm = await callLlm("code", { prompt, blueprint: body.blueprint || {} });
+    if (llm.ok) {
+      const llmFiles = normalizeLlmFiles(llm.data?.files);
+      if (llmFiles.length) {
+        generatedFiles = llmFiles;
+        engine = LLM_PROVIDER;
+        model = llm.model || null;
+      } else {
+        llmNote = "Cerebras returned no usable files";
+      }
+    } else {
+      llmNote = llmFallbackText(llm);
+    }
+
     let newVer = 2;
     if (idx !== -1) {
       const prev = projects[idx];
@@ -668,16 +862,32 @@ export const AGENT_CONFIG = {
       saveLocalProjects(projects.map((p) => (p.id === updated.id ? updated : p)));
     }
 
+    const agent_logs: Array<{ agent: string; message: string; level: "info" | "success" | "warn" }> = [];
+    if (engine === LLM_PROVIDER) {
+      agent_logs.push({
+        agent: "Developer Agent",
+        message: `Wrote ${generatedFiles.length} files with Cerebras ${model || DEFAULT_LLM_MODEL}.`,
+        level: "success",
+      });
+    } else {
+      agent_logs.push({
+        agent: "System",
+        message: `AI engine unavailable (${llmNote}), used built-in templates.`,
+        level: "warn",
+      });
+      agent_logs.push({ agent: "Developer Agent", message: "Wrote React components and backend routes from templates.", level: "info" });
+    }
+    agent_logs.push(
+      { agent: "Integration Agent", message: "Wired the persistent agent tools and data layer.", level: "info" },
+      { agent: "Release PM", message: "Reviewed the bundle and mounted the sandbox preview.", level: "success" }
+    );
+
     return {
       version_number: newVer,
       files: generatedFiles,
-      agent_logs: [
-        { agent: "Architect Agent", message: "Planned pages, data models and API surface.", level: "info" },
-        { agent: "Designer Agent", message: "Locked typography, palette and responsive layout.", level: "info" },
-        { agent: "Developer Agent", message: "Wrote React components and backend routes.", level: "success" },
-        { agent: "Integration Agent", message: "Wired the persistent agent tools and data layer.", level: "info" },
-        { agent: "Release PM", message: "Reviewed the bundle and mounted the sandbox preview.", level: "success" },
-      ],
+      engine,
+      model,
+      agent_logs,
     };
   }
 
@@ -694,7 +904,7 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   // Standalone mode: no network at all.
   if (!HAS_REMOTE_BACKEND) {
-    return handleLocalFallback(path, options) as T;
+    return (await handleLocalFallback(path, options)) as T;
   }
 
   const token = getStoredToken();
@@ -715,7 +925,7 @@ export async function apiRequest<T = any>(
 
     if (!res.ok) {
       if (res.status === 401) {
-        return handleLocalFallback(path, options) as T;
+        return (await handleLocalFallback(path, options)) as T;
       }
       let errorDetail = "An unexpected error occurred";
       try {
@@ -735,6 +945,6 @@ export async function apiRequest<T = any>(
 
     return res.json();
   } catch (err: any) {
-    return handleLocalFallback(path, options) as T;
+    return (await handleLocalFallback(path, options)) as T;
   }
 }

@@ -34,6 +34,7 @@ import {
   Monitor
 } from "lucide-react";
 import { apiRequest, getStoredToken } from "@/lib/api";
+import LlmSettings from "@/components/LlmSettings";
 import AuthModal from "@/components/AuthModal";
 
 interface GeneratedFile {
@@ -254,7 +255,9 @@ export default function BuilderPage() {
         ...prev,
         {
           role: "agent",
-          content: `🎉 Successfully compiled version ${codeGen.version_number}! Frontend and backend code is running live in your sandbox preview.`,
+          content: `🎉 Successfully compiled version ${codeGen.version_number} with ${
+            codeGen.engine === "cerebras" ? `Cerebras ${codeGen.model || ""}`.trim() : "the built-in template engine"
+          }! Frontend and backend code is running live in your sandbox preview.`,
         },
       ]);
     } catch (err: any) {
@@ -441,6 +444,8 @@ export default function BuilderPage() {
             <span className="text-emerald-400 font-bold">∞ Credits</span>
             <span className="text-[10px] text-zinc-500 hidden sm:inline">(Free Forever)</span>
           </div>
+
+          <LlmSettings />
 
           <button
             onClick={handleFork}
