@@ -10,6 +10,7 @@ import {
   Globe,
   Layers,
   Loader2,
+  Store,
   Rocket,
   Sparkles,
   Zap,
@@ -72,7 +73,7 @@ export default function HomePage() {
       <div className="pointer-events-none absolute left-1/2 top-[-220px] h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-[120px]" />
 
       <header className="relative z-10 border-b border-zinc-800/70 bg-[#06060a]/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-5 py-3 sm:gap-4 sm:py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
           <Link href="/" aria-label="Emergent Studio — home" className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 shadow-lg shadow-indigo-900/40">
               <Sparkles className="h-4 w-4 text-white" />
@@ -83,9 +84,17 @@ export default function HomePage() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/showroom"
+              aria-label="Showroom produktów i dem"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-900 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 sm:w-auto sm:justify-start sm:gap-1.5 sm:px-2"
+            >
+              <Store aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden text-xs font-medium sm:inline">Showroom</span>
+            </Link>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-2 py-1 text-[10px] font-medium text-emerald-300 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs">
-              <Zap className="h-3 w-3 text-emerald-400 sm:h-3.5 sm:w-3.5" />
+              <Zap className="hidden h-3 w-3 text-emerald-400 sm:block sm:h-3.5 sm:w-3.5" />
               Free forever
             </span>
             <a
