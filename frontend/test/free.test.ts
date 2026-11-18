@@ -29,7 +29,7 @@ it("counts usage without any credit ledger", () => {
     publish: { slug: "app-abc", version: 2, publishedAt: "2026-01-01T00:00:00.000Z" },
   });
 
-  const stats = statsOf({ jobs: [job, fakeJob({})] });
+  const stats = statsOf({ jobs: [job, fakeJob({})], listings: [] });
 
   assert.deepEqual(stats, { jobs: 2, versions: 2, published: 1 });
   assert.deepEqual(Object.keys(stats).sort(), ["jobs", "published", "versions"]);

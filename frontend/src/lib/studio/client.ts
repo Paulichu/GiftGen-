@@ -1,4 +1,36 @@
-import type { AppType, Job, WorkspaceStats } from "./types";
+import type { AgentTone, AppType, Currency, Job, Listing, WorkspaceStats } from "./types";
+
+export interface ListingSummary {
+  id: string;
+  slug: string;
+  title: string;
+  price: number;
+  currency: Currency;
+  published: boolean;
+  jobId: string;
+  jobName: string;
+  version: number;
+  agentName: string;
+  updatedAt: string;
+}
+
+export interface ListingInput {
+  jobId: string;
+  title?: string;
+  summary?: string;
+  price: number;
+  currency: Currency;
+  contact: string;
+  agentName?: string;
+  tone?: AgentTone;
+  highlights?: string[];
+}
+
+export interface OfferReply {
+  topic: string;
+  reply: string;
+  agent: string;
+}
 
 export interface JobSummary {
   id: string;
@@ -43,6 +75,14 @@ export const studio = {
       body: JSON.stringify({ version }),
     }),
   remove: (id: string) => request<{ ok: boolean }>(`/api/jobs/${id}`, { method: "DELETE" }),
+  listings: () => request<ListingSummary[]>("/api/listings"),
+  createListing: (input: ListingInput) =>
+    request<Listing>("/api/listings", { method: "POST", body: JSON.stringify(input) }),
+  updateListing: (id: string, patch: Record<string, unknown>) =>
+    request<Listing>(`/api/listings/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  removeListing: (id: string) => request<{ ok: boolean }>(`/api/listings/${id}`, { method: "DELETE" }),
+  askOffer: (slug: string, message: string) =>
+    request<OfferReply>(`/api/offers/${slug}/chat`, { method: "POST", body: JSON.stringify({ message }) }),
 };
 
 export function errorMessage(error: unknown): string {

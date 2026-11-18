@@ -163,7 +163,10 @@ export default function HomePage() {
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-zinc-500">
-                Unlimited builds, no credits · data model and fields are derived from your text
+                Unlimited builds, no credits · data model and fields are derived from your text ·{" "}
+                <Link href="/sell" className="font-medium text-indigo-300 underline-offset-2 hover:text-white hover:underline">
+                  Sell a build
+                </Link>
               </p>
               <button
                 type="button"

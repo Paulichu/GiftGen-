@@ -83,8 +83,9 @@ it("writes the cleaned state back on the next save", async () => {
   const raw = await readFile(dbFile, "utf8");
   assert.equal(raw.includes("creditsUsed"), false);
   assert.equal(raw.includes('"credits"'), false);
-  const parsed = JSON.parse(raw) as { jobs: Array<Record<string, unknown>> };
-  assert.deepEqual(Object.keys(parsed), ["jobs"]);
+  const parsed = JSON.parse(raw) as { jobs: Array<Record<string, unknown>>; listings: unknown[] };
+  assert.deepEqual(Object.keys(parsed), ["jobs", "listings"]);
+  assert.deepEqual(parsed.listings, [], "a legacy workspace starts with no listings");
   assert.equal(parsed.jobs[0].name, "Renamed");
 });
 

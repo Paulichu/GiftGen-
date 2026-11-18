@@ -1,17 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { Job, WorkspaceStats } from "./types";
+import type { Job, Listing, WorkspaceStats } from "./types";
 
 export interface Database {
   jobs: Job[];
+  listings: Listing[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DATA_DIR, "studio.json");
 
 function emptyDb(): Database {
-  return { jobs: [] };
+  return { jobs: [], listings: [] };
 }
 
 type LegacyJob = Job & { creditsUsed?: number };
@@ -53,7 +54,8 @@ async function loadDb(): Promise<Database> {
     return emptyDb();
   }
 
-  const jobs = (parsed as { jobs?: unknown } | null)?.jobs;
+  const workspace = parsed as { jobs?: unknown; listings?: unknown } | null;
+  const jobs = workspace?.jobs;
   if (!Array.isArray(jobs)) {
     await quarantine("not a studio workspace");
     return emptyDb();
@@ -62,7 +64,9 @@ async function loadDb(): Promise<Database> {
   // Workspaces written before the studio became unlimited may still carry a
   // credits ledger (top-level `credits` plus per-job `creditsUsed`). Both are
   // dropped here, so they neither leak through the API nor come back on save.
-  return { jobs: (jobs as LegacyJob[]).map(stripLegacyFields) };
+  // Listings arrived later, so older workspaces simply start with none.
+  const listings = Array.isArray(workspace?.listings) ? (workspace.listings as Listing[]) : [];
+  return { jobs: (jobs as LegacyJob[]).map(stripLegacyFields), listings };
 }
 
 async function saveDb(db: Database): Promise<void> {
@@ -110,6 +114,16 @@ export async function findPublished(slug: string): Promise<{ job: Job; versionNu
   const job = db.jobs.find((entry) => entry.publish?.slug === slug);
   if (!job || !job.publish) return null;
   return { job, versionNumber: job.publish.version };
+}
+
+export async function findListing(id: string): Promise<Listing | null> {
+  const db = await loadDb();
+  return db.listings.find((listing) => listing.id === id) ?? null;
+}
+
+export async function findListingBySlug(slug: string): Promise<Listing | null> {
+  const db = await loadDb();
+  return db.listings.find((listing) => listing.slug === slug) ?? null;
 }
 
 export function newId(): string {

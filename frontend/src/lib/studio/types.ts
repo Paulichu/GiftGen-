@@ -92,6 +92,32 @@ export interface Job {
   publish: PublishRecord | null;
 }
 
+export type AgentTone = "friendly" | "direct" | "consultative";
+export type Currency = "PLN" | "EUR" | "USD";
+
+export interface SalesAgent {
+  name: string;
+  tone: AgentTone;
+  greeting: string;
+  highlights: string[];
+  contact: string;
+}
+
+export interface Listing {
+  id: string;
+  slug: string;
+  jobId: string;
+  version: number;
+  title: string;
+  summary: string;
+  price: number;
+  currency: Currency;
+  agent: SalesAgent;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface WorkspaceStats {
   jobs: number;
   versions: number;
