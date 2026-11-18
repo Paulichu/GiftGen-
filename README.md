@@ -35,7 +35,7 @@ Read this before expecting an LLM product:
 
 ## Requirements
 
-- Node.js 18.17+ (tested on Node 26) and npm
+- Node.js 22.x and npm. `frontend/.nvmrc` pins the version, so run `nvm use` there; CI reads the same file. Other versions still install, but npm warns with `EBADENGINE`.
 
 ## Run locally
 
