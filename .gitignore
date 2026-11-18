@@ -23,5 +23,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# build artifacts
+# Studio runtime data
+.data/
+
+# Compiled tests
+frontend/test-dist/
+
+# Local build/typecheck caches and chat screenshots
+*.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
+artifacts/

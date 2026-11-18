@@ -1,204 +1,137 @@
-# Emergent Studio — Full-Stack AI App Builder & Persistent Agent
+# Emergent Studio
 
-An open-source alternative to `app.emergent.sh` ("Emergent Studio"). Transform natural language prompts into production-ready software prototypes with automated multi-agent architecture and a 24/7 Persistent Agent living on Telegram and WhatsApp.
+A self-hosted, open-source take on the [app.emergent.sh](https://app.emergent.sh) workflow — with one rule: the apps it generates actually run.
 
----
+Describe an app in plain language. The studio derives a data model, writes a self-contained HTML/CSS/JS app, serves it in a live preview, keeps a real version history, and publishes it at a working URL.
 
-## 🏗 Architecture
-
-- **Frontend:** Next.js 14 (App Router, TypeScript, Tailwind CSS)
-  - Interactive Landing Page (`/`) with live platform statistics counter.
-  - Multi-agent Builder (`/builder`) featuring Project Explorer, 5-agent sequential conversation pipeline (Architect, Designer, Developer, Integration, PM), Live Preview sandbox iframe with hot-reload, Code Inspector, and terminal logs.
-  - **Standalone Engine:** Seamless client-side fallback in `src/lib/api.ts` that prevents auth lockouts and enables browser simulation when deployed independently (e.g. on Vercel).
-  - **Capacitor 6 Android:** Ready-to-build Android project in `frontend/android/` with dark status bar, splash screen, and push notifications.
-- **Backend:** FastAPI (Python 3.11) with Motor (async MongoDB)
-  - Modular routers for Auth (JWT & bcrypt), Projects, Versions (Rollback & Fork), Stats, and Multi-Agent Generation.
-  - **Persistent Agent (`/api/agent`):** Always-on assistant powered by OpenAI `gpt-4o-mini` with MongoDB function calling (`check_availability`, `create_booking`, `get_bookings`), Telegram bot webhook (`/webhook/telegram`), Meta WhatsApp Cloud API (`/webhook/whatsapp`), and direct chat (`/chat`).
-  - **Deployment Ready:** Configured for Railway deployment via `railway.json` and `backend/railway.toml` with `/health` healthcheck endpoint.
+**Free forever:** no accounts, no credits, no paid tiers. Builds, chat edits, publishing and ZIP export are unlimited on your own server.
 
 ---
 
-## ⚙️ Environment Variables
+## What is real
 
-Copy `.env.example` to `.env` in the root and fill in the values:
+| Step | What actually happens |
+| --- | --- |
+| **Plan** | `frontend/src/lib/studio/analyze.ts` parses the prompt: entity name, typed fields (text, number, date, time, choice, yes/no, long text), theme mode and accent. Nothing comes from a preset app library. |
+| **Build** | `generate.ts` writes `index.html`, `styles.css`, `app.js`, `schema.json` and `README.md`. The app has create/edit/delete, search, filters, sorting, stat counters, CSV export and `localStorage` persistence. |
+| **Preview** | The iframe loads the generated files from `/api/jobs/<id>/preview/...` with real content types, so the preview *is* the app — not a screenshot. |
+| **Iterate** | Chat instructions really edit the blueprint and rebuild it as a new version (`v2`, `v3`, …). See [supported edits](#what-you-can-ask-for). |
+| **Roll back** | Any earlier version can be restored and edited again. |
+| **Publish** | Publishing serves the chosen version at `/p/<slug>`; re-publishing pushes the current version. |
+| **Export** | Any build downloads as a ZIP (`index.html`, `styles.css`, `app.js`, `schema.json`, `README.md`) that runs on any static host. |
+| **Free** | No credits, quotas or paywalls — every build, edit, publish and export is unlimited. |
 
-| Variable | Description | Default / Example |
-|---|---|---|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/emergent` |
-| `USE_MOCK_MONGO` | Use in-memory `mongomock-motor` | `0` (or `1` for tests) |
-| `JWT_SECRET` | Secret key for JWT auth tokens | `super_secret_jwt_key_...` |
-| `OPENAI_API_KEY` | OpenAI API key for generation & persistent agent | `sk-...` |
-| `TELEGRAM_BOT_TOKEN`| Bot token from @BotFather for 24/7 Telegram bot | `123456:ABC...` |
-| `WHATSAPP_TOKEN` | Meta WhatsApp Cloud API access token | `EAAX...` |
-| `WHATSAPP_PHONE_ID`| Meta WhatsApp phone number ID | `10023456789` |
-| `WEBHOOK_SECRET` | Verify token for WhatsApp webhook | `emergent_webhook_secret` |
-| `NEXT_PUBLIC_API_URL`| Backend URL consumed by frontend | `http://localhost:8000` |
-| `CORS_ORIGINS` | Allowed CORS origins (JSON array or comma-separated) | `["http://localhost:3000","https://frontend-84ui.vercel.app"]` |
-| `PORT` | Backend port (Railway / Docker) | `8000` |
+Jobs, versions and messages are stored in `frontend/.data/studio.json`. No accounts, no database, no external services. If that file is unreadable, the studio moves it aside as `studio.json.corrupt-<timestamp>.bak` and starts from an empty workspace instead of failing every request.
 
----
+## What it is not
 
-## 🚀 Quickstart / Jak uruchomić
+Read this before expecting an LLM product:
 
-### 1. Szybki start przez Docker Compose (Zalecane / Recommended)
+- **No AI model is called.** Prompt understanding is deterministic and rule-based. It recognises explicit attributes (`name`, `email`, `price`, `due date`, `status`, `notes`, …) and derives the rest. It will not invent domain-specific screens.
+- **Generated apps are single-page and client-side.** Their records live in the visitor's `localStorage`, so two devices do not share data, and there is no generated server API.
+- **Chat edits follow a known grammar** — unsupported instructions get an honest "I did not catch that" reply rather than a fake success.
+- **Single workspace.** There is no login; anyone who can reach the server shares it. The JSON store is meant for one server process, not serverless or multi-replica hosting.
+- **`backend/` is legacy.** The FastAPI/MongoDB service and the Telegram/WhatsApp agent from an earlier iteration are not used by this studio. The Capacitor wrapper in `frontend/android` targeted the old static export and is not maintained; use the browser instead.
 
-Jedno polecenie uruchamia bazę MongoDB, backend FastAPI oraz frontend Next.js:
+## Requirements
 
-```bash
-# 1. Kopiowanie pliku zmiennych środowiskowych
-cp .env.example .env
+- Node.js 18.17+ (tested on Node 26) and npm
 
-# 2. Uruchomienie wszystkich kontenerów
-docker-compose up --build
-```
+## Run locally
 
-- **Frontend (Aplikacja WWW):** `http://localhost:3000`
-- **Backend API Docs (Swagger):** `http://localhost:8000/docs`
-- **Healthcheck & Status Agenta:** `http://localhost:8000/health`
-
----
-
-### 2. Uruchomienie lokalne (Manualne krok po kroku)
-
-#### A. Backend (FastAPI + Python):
-```bash
-cd backend
-
-# Utworzenie i aktywacja środowiska wirtualnego (opcjonalnie)
-python3 -m venv venv
-source venv/bin/activate  # na Windows: venv\Scripts\activate
-
-# Instalacja zależności
-pip install -r requirements.txt
-
-# Start serwera API (z auto-reloadem)
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-*Domyślnie, jeśli nie ma lokalnej bazy MongoDB, aplikacja automatycznie używa pamięciowego mocka `mongomock-motor` (`USE_MOCK_MONGO=1`), więc backend startuje natychmiast bez dodatkowej konfiguracji!*
-
-#### B. Frontend (Next.js 14):
-W nowym oknie terminala:
 ```bash
 cd frontend
-
-# Instalacja pakietów
-npm install
-
-# Tryb developerski
-npm run dev
-```
-Aplikacja dostępna pod adresem: `http://localhost:3000`.
-
----
-
-### 3. Uruchomienie 24/7 Agenta Telegram (Tryb Polling / Bez publicznego IP)
-
-Jeśli posiadasz token od `@BotFather` i chcesz testować bota na Telegramie bez konieczności wystawiania publicznego adresu HTTPS dla webhooka:
-```bash
-cd backend
-export TELEGRAM_BOT_TOKEN="twój_token_od_botfather"
-python -m app.telegram_bot_polling
-```
-Bot natychmiast nasłuchuje na Telegramie i zarządza rezerwacjami w MongoDB w czasie rzeczywistym.
-
----
-
-### 4. Uruchomienie w Termux na Androidzie — 100% Real (BEZ SYMULACJI, BEZ MOCKÓW) 📲
-
-Całość działa w 100% na prawdziwym backendzie, prawdziwym modelu OpenAI (`gpt-4o-mini`), prawdziwej bazie MongoDB (Atlas lub lokalna) i prawdziwym bocie Telegram / WhatsApp.
-
-#### Krok 1: Przygotowanie pakietów w Termux
-Otwórz aplikację Termux na Androidzie:
-```bash
-# Aktualizacja repozytoriów i instalacja pakietów systemowych
-pkg update -y && pkg upgrade -y
-pkg install -y git python nodejs-lts clang make build-essential tmux
-termux-wake-lock
-```
-*(Polecenie `termux-wake-lock` blokuje wygaszanie procesora w Androidzie — bot i backend działają nieprzerwanie 24/7).*
-
-#### Krok 2: Klonowanie repozytorium
-```bash
-git clone <URL_REPOZYTORIUM> emergent-studio
-cd emergent-studio
-```
-
-#### Krok 3: Prawdziwa konfiguracja środowiska (.env) — BEZ MOCKÓW
-```bash
-cp .env.example .env
-nano .env  # lub edytuj w ulubionym edytorze
-```
-W pliku `.env` ustaw prawdziwe wartości produkcyjne:
-```env
-USE_MOCK_MONGO=0
-MONGODB_URI=mongodb+srv://user:haslo@twoj-klaster.mongodb.net/emergent?retryWrites=true&w=majority
-OPENAI_API_KEY=sk-proj-twoj_prawdziwy_klucz_openai
-TELEGRAM_BOT_TOKEN=twój_prawdziwy_token_od_botfather
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-*(Baza MongoDB: darmowy stały klaster na mongodb.com Atlas — 0 zł na zawsze, idealny do Termux).*
-
-#### Krok 4: Instalacja i start prawdziwego Backendu (FastAPI)
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Start backendu z prawdziwym połączeniem do MongoDB i OpenAI:
-uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-```
-Sprawdzenie statusu połączenia:
-```bash
-curl http://localhost:8000/health
-# Zwraca: {"status":"ok","persistent_agent":"online","credits":"infinite"}
-```
-
-#### Krok 5: Start Prawdziwego Agenta Telegram (24/7 Polling)
-W tym samym oknie lub w sesji tmux:
-```bash
-python -m app.telegram_bot_polling &
-```
-Agent jest teraz natychmiast aktywny na Twoim koncie Telegram: rozmawia przez OpenAI i zapisuje rzeczywiste rezerwacje do Twojej bazy MongoDB!
-
-#### Krok 6: Instalacja i start Frontendu (Next.js 14)
-Otwórz nową sesję Termux (przesuń palcem od lewej krawędzi -> New Session):
-```bash
-cd emergent-studio/frontend
-npm install
+npm ci
 npm run dev -- -H 0.0.0.0 -p 3000
 ```
 
-#### Krok 7: Korzystanie na telefonie
-Otwórz przeglądarkę na telefonie (Chrome/Brave/Firefox) i wpisz:
-`http://localhost:3000`
+Open <http://localhost:3000>. The production build is:
 
-Wszystkie zapytania trafiają do Twojego lokalnego serwera FastAPI, bazy MongoDB i OpenAI — zero mocków, zero symulacji.
-
----
-
-## 📱 Android Build (Capacitor 6)
-
-The frontend is wrapped with Capacitor without custom Kotlin or Java code:
 ```bash
 cd frontend
 npm run build
-npx cap sync android
-npx cap open android
+npm run start
 ```
-In Android Studio: **Build** ➔ **Build Bundle(s) / APK(s)** ➔ **Build APK(s)**.
 
----
+Reset the workspace by deleting `frontend/.data/studio.json` (jobs, versions and messages).
 
-## 🧪 Testing
+## From a phone (Android or iOS)
+
+1. Run the server bound to all interfaces: `npm run dev -- -H 0.0.0.0 -p 3000`.
+2. On the phone, open `http://<computer-LAN-IP>:3000` (same Wi-Fi).
+3. For access from anywhere, put the app behind any HTTPS reverse proxy or tunnel and open that URL.
+
+The builder is designed for small screens: below 1024 px it switches to an **App / Chat** toggle instead of squeezing both panes side by side, the tab bar collapses to icons, and the preview uses the full remaining height. Published URLs (`/p/<slug>`) work in the same mobile browser.
+
+On Android Chrome the viewport uses `interactive-widget=resizes-content`, so opening the keyboard shrinks the layout instead of covering the chat composer.
+
+The studio ships a web app manifest (`/manifest.webmanifest`, `display: standalone`, 192/512 px icons plus a maskable icon), so **Chrome → menu → Add to Home screen** installs it like an app. On iOS use Share → Add to Home Screen.
+
+When Chrome reports the page as installable, the home page shows an **Install** banner driven by `beforeinstallprompt`; it disappears once the app is installed or the visitor dismisses it. iOS Safari gets a short *Share → Add to Home Screen* hint instead. The PNG icons are rasterized from `frontend/public/icons/icon.svg`, which is kept as the editable source.
+
+Note that a generated app keeps its records in the browser that opened it, independently on each device.
+
+## Configuration
+
+No secrets or API keys are required. See [`.env.example`](.env.example). The only optional variable is `PORT` (default `3000`).
+
+## What you can ask for
+
+| Instruction | Effect |
+| --- | --- |
+| `add a price field` | Adds a typed field (number with currency unit). |
+| `remove the notes field` | Removes a field (the app always keeps one). |
+| `rename the title field to Name` | Renames a field, keeping its data key. |
+| `make the price field a number` | Changes the field type. |
+| `rename the app to Garden Log` | Renames the project and the generated app. |
+| `make it light mode` / `make it dark mode` | Switches the theme. |
+| `use a teal accent` / `#ff8800` | Changes the accent colour. |
+| `remove the CSV export` / `add search` | Toggles search, filter, sort, stats or CSV export. |
+
+## API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/stats` | Workspace counters (builds, versions, published). |
+| `GET` | `/api/jobs` | List builds (summary). |
+| `POST` | `/api/jobs` | Create a build: `{ "prompt": "...", "appType": "fullstack" \| "mobile" \| "landing" }`. |
+| `GET` | `/api/jobs/<id>` | Full build with versions, messages and files. |
+| `DELETE` | `/api/jobs/<id>` | Delete a build. |
+| `POST` | `/api/jobs/<id>/messages` | Apply a chat edit: `{ "content": "add a due date field" }`. |
+| `POST` | `/api/jobs/<id>/rollback` | Restore a version: `{ "version": 2 }`. |
+| `POST` | `/api/jobs/<id>/publish` | Publish the current version. |
+| `GET` | `/api/jobs/<id>/export?version=<n>` | Download a version as a ZIP archive (no parameter = current version). |
+| `GET` | `/api/jobs/<id>/preview/<file>` | Serve the current version's files. |
+| `GET` | `/p/<slug>` | Serve a published build. |
+
+## Project layout
+
+```
+frontend/
+  src/app/                     landing page, builder, API routes, /p/<slug> publisher
+  src/lib/studio/
+    analyze.ts                 prompt → blueprint (entity, fields, theme)
+    generate.ts                blueprint → working HTML/CSS/JS
+    iterate.ts                 chat instruction → blueprint change
+    pipeline.ts                build + bundle validation (files, asset links, JS syntax, schema) + agent events
+    store.ts                   JSON persistence and version helpers
+    runtime/                   browser runtime shipped inside generated apps
+  test/validation.test.ts      node:test suite for generated bundles and validation
+  .data/studio.json            created on first build (git-ignored)
+backend/                       legacy FastAPI service (unused)
+```
+
+## Checks
 
 ```bash
-# Run backend tests
-cd backend
-PYTHONPATH=. pytest tests/ -v
-
-# Run frontend build (Static Export)
 cd frontend
+npm test          # node:test: generated bundles + validation rejections
+npx tsc --noEmit
 npm run build
 ```
+
+GitHub Actions runs `npm ci`, `npm test` and `npm run build` in `frontend/` on every push and pull request (`.github/workflows/ci.yml`).
+
+## License
+
+See [LICENSE.txt](LICENSE.txt).
