@@ -1,386 +1,287 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Sparkles,
   ArrowRight,
   Code2,
-  Cpu,
-  Layers,
-  Rocket,
-  CheckCircle2,
+  Eye,
   Globe,
-  Database,
-  ShieldCheck,
-  ChevronRight,
-  Terminal,
+  Layers,
+  Loader2,
+  Rocket,
+  Sparkles,
   Zap,
-  Play,
-  Bot,
-  Infinity
 } from "lucide-react";
-import AuthModal from "@/components/AuthModal";
-import { apiRequest, getStoredToken } from "@/lib/api";
+import InstallApp from "@/components/InstallApp";
+import { errorMessage, studio, timeAgo, type JobSummary } from "@/lib/studio/client";
+import type { AppType, WorkspaceStats } from "@/lib/studio/types";
 
-const PROMPT_SUGGESTIONS = [
-  "Barbershop",
-  "Gym",
-  "Restaurant",
-  "Salon"
+const APP_TYPES: Array<{ id: AppType; label: string; hint: string }> = [
+  { id: "fullstack", label: "Full-stack app", hint: "Records, fields and saved data" },
+  { id: "mobile", label: "Mobile app", hint: "Mobile-first layout" },
+  { id: "landing", label: "Landing page", hint: "Single page and a signup form" },
 ];
 
-export default function LandingPage() {
+export default function HomePage() {
   const router = useRouter();
-  const [stats, setStats] = useState({ projects: "0 Projects", bookings: "0 Bookings", credits: "∞ Credits" });
   const [prompt, setPrompt] = useState("");
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string>("Free");
+  const [appType, setAppType] = useState<AppType>("fullstack");
+  const [stats, setStats] = useState<WorkspaceStats | null>(null);
+  const [jobs, setJobs] = useState<JobSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [building, setBuilding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const data = await apiRequest("/api/stats");
-        if (data) {
-          setStats({
-            projects: `${data.projects_generated || 0} Projects`,
-            bookings: `0 Bookings`,
-            credits: "∞ Credits",
-          });
-        }
-      } catch {
-        // Fallback default
-      }
+  const refresh = useCallback(async () => {
+    try {
+      const [nextStats, nextJobs] = await Promise.all([studio.stats(), studio.jobs()]);
+      setStats(nextStats);
+      setJobs(nextJobs);
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setLoading(false);
     }
-    loadStats();
   }, []);
 
-  const handleStartBuilding = (chosenPrompt?: string) => {
-    const finalPrompt = chosenPrompt || prompt;
-    if (typeof window !== "undefined") {
-      if (finalPrompt.trim()) {
-        localStorage.setItem("emergent_initial_prompt", finalPrompt.trim());
-      }
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function startBuild() {
+    const text = prompt.trim();
+    if (text.length < 10) {
+      setError("Describe the app in at least 10 characters.");
+      return;
     }
-    router.push("/builder");
-  };
+    setBuilding(true);
+    setError(null);
+    try {
+      const job = await studio.create(text, appType);
+      router.push(`/jobs/${job.id}`);
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setBuilding(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-[#050507] text-white selection:bg-indigo-600 selection:text-white">
-      {/* Top Banner */}
-      <div className="w-full bg-gradient-to-r from-emerald-950/60 via-indigo-950/60 to-purple-950/60 border-b border-emerald-500/30 py-2.5 px-4 text-center text-xs sm:text-sm text-emerald-200 flex items-center justify-center gap-2">
-        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="font-semibold text-emerald-300">FREE FOREVER · NO CREDITS · NO CARD</span>
-        <span className="hidden sm:inline text-zinc-400">| Complete full-stack autonomous studio with Always-On Persistent Agent</span>
-      </div>
+    <div className="relative min-h-screen overflow-x-hidden">
+      <div className="pointer-events-none absolute left-1/2 top-[-220px] h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-[120px]" />
 
-      {/* Navigation */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-[#050507]/80 border-b border-zinc-800/80 px-6 lg:px-12 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 ring-1 ring-white/20">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <span className="text-xl font-bold tracking-tight text-white font-sans">Vibe Engine</span>
-            <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono font-semibold uppercase">
-              Emergent Studio
+      <header className="relative z-10 border-b border-zinc-800/70 bg-[#06060a]/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-5 py-3 sm:gap-4 sm:py-4">
+          <Link href="/" aria-label="Emergent Studio — home" className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 shadow-lg shadow-indigo-900/40">
+              <Sparkles className="h-4 w-4 text-white" />
             </span>
-          </div>
-        </div>
-
-        <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400 font-medium">
-          <a href="#features" className="hover:text-white transition">Features</a>
-          <a href="#pricing" className="hover:text-white transition">Pricing</a>
-          <a href="#persistent" className="hover:text-white transition">24/7 Agent</a>
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/builder"
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"
-          >
-            Launch Studio
-            <ArrowRight className="w-4 h-4" />
+            <span className="hidden text-lg font-bold tracking-tight sm:inline">Emergent Studio</span>
+            <span className="hidden rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 sm:inline">
+              self-hosted
+            </span>
           </Link>
+
+          <div className="flex items-center gap-3">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-2 py-1 text-[10px] font-medium text-emerald-300 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs">
+              <Zap className="h-3 w-3 text-emerald-400 sm:h-3.5 sm:w-3.5" />
+              Free forever
+            </span>
+            <a
+              href="#build"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 sm:px-4 sm:text-sm"
+            >
+              New build
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-16 px-6 lg:px-12 max-w-5xl mx-auto text-center flex flex-col items-center">
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+      <main
+        className="relative z-10 mx-auto max-w-6xl px-5"
+        style={{ paddingBottom: "calc(max(5rem, var(--install-banner-space, 0px) + 1rem))" }}
+      >
+        <section className="pt-16 sm:pt-24">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Every build generates real files and a running preview
+          </p>
+          <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl">
+            Describe an app.
+            <br />
+            Get a working app.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base text-zinc-400 sm:text-lg">
+            The studio reads your prompt, designs a data model, and writes a self-contained
+            HTML/CSS/JS app. The preview is the app itself — no mockups, no placeholder screenshots.
+          </p>
+        </section>
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-800/80 text-xs text-emerald-300 mb-8 backdrop-blur">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold uppercase tracking-wider">FREE FOREVER · NO CREDITS · NO CARD</span>
-        </div>
+        <section id="build" className="mt-10 scroll-mt-24">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-4 shadow-2xl shadow-black/40 sm:p-5">
+            <div className="flex flex-wrap gap-2">
+              {APP_TYPES.map((type) => {
+                const active = appType === type.id;
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setAppType(type.id)}
+                    className={`rounded-xl border px-3.5 py-2 text-left transition ${
+                      active
+                        ? "border-indigo-500 bg-indigo-600/10"
+                        : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                    }`}
+                  >
+                    <span className={`block text-sm font-semibold ${active ? "text-white" : "text-zinc-300"}`}>
+                      {type.label}
+                    </span>
+                    <span className="block text-[11px] text-zinc-500">{type.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-        {/* Hero title */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-          Describe it. Five agents build it.
-        </h1>
-
-        <p className="mt-6 text-lg sm:text-2xl font-medium text-zinc-300 max-w-3xl leading-relaxed">
-          Plus a 24/7 agent that books appointments on Telegram &amp; WhatsApp.
-        </p>
-
-        {/* Prompt Input Box */}
-        <div className="w-full max-w-3xl mt-10 bg-zinc-900/90 border border-zinc-800 rounded-3xl p-3 shadow-2xl backdrop-blur-xl focus-within:border-indigo-500/80 transition group">
-          <div className="relative">
             <textarea
-              rows={3}
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe your idea... e.g. Barbershop booking app with haircut services, calendar availability, and 24/7 Telegram confirmation"
-              className="w-full bg-transparent p-3 text-sm sm:text-base text-white placeholder-zinc-500 resize-none focus:outline-none"
+              onChange={(event) => setPrompt(event.target.value)}
+              rows={4}
+              placeholder="Describe what you want to build, who it is for and the fields you need…"
+              className="mt-4 w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-indigo-500 sm:text-[15px]"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 px-2 border-t border-zinc-800/80">
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>5 Sequential Builder Agents + 1 Persistent Always-On Bot</span>
-            </div>
-            <button
-              onClick={() => handleStartBuilding()}
-              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-            >
-              Start Building Free
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
 
-        {/* Chips: Barbershop / Gym / Restaurant / Salon */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2 max-w-3xl">
-          <span className="text-xs text-zinc-500 mr-1">Popular templates:</span>
-          {PROMPT_SUGGESTIONS.map((s, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setPrompt(`Full-stack appointment booking app for ${s}`);
-                handleStartBuilding(`Full-stack appointment booking app for ${s}`);
-              }}
-              className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-full text-xs font-medium text-zinc-300 transition"
-            >
-              {s}
-            </button>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-zinc-500">
+                Unlimited builds, no credits · data model and fields are derived from your text
+              </p>
+              <button
+                type="button"
+                onClick={startBuild}
+                disabled={building}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                {building ? "Building…" : "Build app"}
+              </button>
+            </div>
+
+            {error ? (
+              <p className="mt-3 rounded-xl border border-red-900/60 bg-red-950/40 px-3 py-2 text-xs text-red-300">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="mt-14">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Your builds</h2>
+              <p className="text-sm text-zinc-500">Stored in this workspace and kept across restarts.</p>
+            </div>
+            {stats ? (
+              <div className="hidden gap-6 text-right text-xs text-zinc-500 sm:flex">
+                <span>
+                  <strong className="block text-lg font-bold text-zinc-200">{stats.jobs}</strong>
+                  builds
+                </span>
+                <span>
+                  <strong className="block text-lg font-bold text-zinc-200">{stats.versions}</strong>
+                  versions
+                </span>
+                <span>
+                  <strong className="block text-lg font-bold text-zinc-200">{stats.published}</strong>
+                  published
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="h-32 animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/40" />
+              ))}
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/40 p-10 text-center">
+              <p className="text-sm font-semibold text-zinc-300">No builds yet</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Describe your first app above — the studio will generate it and open the preview.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {jobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href={`/jobs/${job.id}`}
+                  className="group flex flex-col rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 transition hover:border-zinc-700 hover:bg-zinc-900/50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="line-clamp-1 text-sm font-semibold text-zinc-100">{job.name}</h3>
+                    <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                      v{job.currentVersion}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-zinc-500">{job.prompt}</p>
+                  <div className="mt-auto flex items-center gap-3 pt-4 text-[11px] text-zinc-500">
+                    <span>{job.appType === "landing" ? "Landing page" : job.appType === "mobile" ? "Mobile app" : "Full-stack"}</span>
+                    {job.fieldCount > 0 ? <span>{job.fieldCount} fields</span> : null}
+                    <span>{timeAgo(job.updatedAt)}</span>
+                    {job.publishedSlug ? (
+                      <span className="ml-auto inline-flex items-center gap-1 text-emerald-400">
+                        <Globe className="h-3 w-3" />
+                        live
+                      </span>
+                    ) : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              icon: Layers,
+              title: "Plans the model",
+              copy: "Reads the prompt, picks the entity and turns mentioned attributes into typed fields.",
+            },
+            {
+              icon: Code2,
+              title: "Writes real files",
+              copy: "Emits index.html, styles.css and app.js — no framework, no build step.",
+            },
+            {
+              icon: Eye,
+              title: "Runs the preview",
+              copy: "The preview iframe is served from those exact files, so what you see is the app.",
+            },
+            {
+              icon: Globe,
+              title: "Publishes for real",
+              copy: "Publishing serves the chosen version at its own URL, and re-publishing pushes updates.",
+            },
+          ].map((item) => (
+            <div key={item.title} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-5">
+              <item.icon className="h-5 w-5 text-indigo-400" />
+              <h3 className="mt-3 text-sm font-semibold text-zinc-200">{item.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{item.copy}</p>
+            </div>
           ))}
-        </div>
-      </section>
+        </section>
 
-      {/* Stats Row: 0 Projects, 0 Bookings, ∞ Credits */}
-      <section className="border-y border-zinc-800/80 bg-zinc-950/60 py-10">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-zinc-800">
-          <div className="pt-4 md:pt-0">
-            <p className="text-4xl font-extrabold text-white tracking-tight">0 Projects</p>
-            <p className="text-zinc-400 text-sm mt-1 uppercase tracking-wider font-medium">Projects Generated</p>
-          </div>
-          <div className="pt-4 md:pt-0">
-            <p className="text-4xl font-extrabold text-white tracking-tight">0 Bookings</p>
-            <p className="text-zinc-400 text-sm mt-1 uppercase tracking-wider font-medium">Persistent Appointments</p>
-          </div>
-          <div className="pt-4 md:pt-0">
-            <p className="text-4xl font-extrabold text-emerald-400 tracking-tight flex items-center justify-center gap-1">
-              <span>∞</span> Credits
-            </p>
-            <p className="text-zinc-400 text-sm mt-1 uppercase tracking-wider font-medium">Unlimited &amp; Free Forever</p>
-          </div>
-        </div>
-      </section>
+        <p className="mt-14 text-center text-xs text-zinc-600">
+          Builds, versions and messages live in <code className="rounded bg-zinc-900 px-1.5 py-0.5">.data/studio.json</code>.
+          Generated apps keep their records in browser storage.
+        </p>
+      </main>
 
-      {/* 5-Agent Swarm + Persistent Agent Overview */}
-      <section id="features" className="py-20 px-6 lg:px-12 max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/60 border border-indigo-800/60 text-xs font-semibold text-indigo-400 mb-3">
-            ARCHITECTURE
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-            5 Sequential Studio Agents + 1 Always-On Agent
-          </h2>
-          <p className="mt-4 text-zinc-400 text-base max-w-2xl mx-auto">
-            A collaborative multi-agent engine that takes your prompt from idea to production-ready Next.js &amp; FastAPI software.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl">
-            <div className="text-xs font-mono font-bold text-indigo-400 mb-2">01. ARCHITECT</div>
-            <h4 className="text-sm font-semibold text-white">Plans Structure</h4>
-            <p className="text-xs text-zinc-400 mt-1">Defines schema, models, clarification questions, and endpoints.</p>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl">
-            <div className="text-xs font-mono font-bold text-pink-400 mb-2">02. DESIGNER</div>
-            <h4 className="text-sm font-semibold text-white">Palette &amp; Layout</h4>
-            <p className="text-xs text-zinc-400 mt-1">Designs responsive Tailwind dark UI components and layout.</p>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl">
-            <div className="text-xs font-mono font-bold text-emerald-400 mb-2">03. DEVELOPER</div>
-            <h4 className="text-sm font-semibold text-white">Writes Code</h4>
-            <p className="text-xs text-zinc-400 mt-1">Generates clean Next.js 14 and FastAPI Python services.</p>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl">
-            <div className="text-xs font-mono font-bold text-amber-400 mb-2">04. INTEGRATION</div>
-            <h4 className="text-sm font-semibold text-white">Wires APIs</h4>
-            <p className="text-xs text-zinc-400 mt-1">Connects MongoDB collections, webhooks, and live routes.</p>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl">
-            <div className="text-xs font-mono font-bold text-purple-400 mb-2">05. PM</div>
-            <h4 className="text-sm font-semibold text-white">Reviews &amp; Ships</h4>
-            <p className="text-xs text-zinc-400 mt-1">Conducts final verification and mounts live sandbox preview.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section (Display-only, zero paywalls) */}
-      <section id="pricing" className="py-20 px-6 lg:px-12 max-w-6xl mx-auto border-t border-zinc-800/80">
-        <div className="text-center mb-6">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Transparent Plans
-          </h2>
-          <p className="mt-2 text-zinc-400 text-sm max-w-md mx-auto">
-            Everything stays free forever — plans are for display only, nothing is locked.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
-          {/* Free Plan */}
-          <div
-            onClick={() => setSelectedPlan("Free")}
-            className={`cursor-pointer bg-zinc-950 border rounded-3xl p-8 flex flex-col justify-between transition ${
-              selectedPlan === "Free" ? "border-emerald-500 shadow-xl shadow-emerald-500/10" : "border-zinc-800"
-            }`}
-          >
-            <div>
-              <div className="flex justify-between items-center">
-                <h4 className="text-lg font-bold text-white">Free</h4>
-                {selectedPlan === "Free" && (
-                  <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">
-                    SELECTED
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">Essential generation with full access</p>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-white">$0</span>
-                <span className="text-xs text-zinc-500">/ forever</span>
-              </div>
-              <ul className="mt-6 space-y-3 text-xs text-zinc-300">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Unlimited app generation</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> 5-Agent pipeline</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> 24/7 Persistent Telegram agent</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Live sandbox preview</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => handleStartBuilding()}
-              className="mt-8 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white rounded-xl text-sm font-medium transition"
-            >
-              Select Free
-            </button>
-          </div>
-
-          {/* Standard Plan */}
-          <div
-            onClick={() => setSelectedPlan("Standard")}
-            className={`cursor-pointer bg-zinc-950 border rounded-3xl p-8 flex flex-col justify-between relative shadow-2xl transition ${
-              selectedPlan === "Standard" ? "border-indigo-500 shadow-indigo-500/20" : "border-zinc-800"
-            }`}
-          >
-            <div>
-              <div className="flex justify-between items-center">
-                <h4 className="text-lg font-bold text-white">Standard</h4>
-                {selectedPlan === "Standard" && (
-                  <span className="text-[10px] bg-indigo-950 text-indigo-400 border border-indigo-800 px-2 py-0.5 rounded font-mono">
-                    SELECTED
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">Creator package (display only, fully unlocked)</p>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-white">$17</span>
-                <span className="text-xs text-zinc-500">/ month</span>
-              </div>
-              <ul className="mt-6 space-y-3 text-xs text-zinc-300">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400" /> Everything unlocked</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400" /> WhatsApp Cloud API integration</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400" /> 1-Click cloud deployment</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400" /> GitHub export</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => handleStartBuilding()}
-              className="mt-8 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
-            >
-              Select Standard
-            </button>
-          </div>
-
-          {/* Pro Plan */}
-          <div
-            onClick={() => setSelectedPlan("Pro")}
-            className={`cursor-pointer bg-zinc-950 border rounded-3xl p-8 flex flex-col justify-between transition ${
-              selectedPlan === "Pro" ? "border-purple-500 shadow-purple-500/20" : "border-zinc-800"
-            }`}
-          >
-            <div>
-              <div className="flex justify-between items-center">
-                <h4 className="text-lg font-bold text-white">Pro</h4>
-                {selectedPlan === "Pro" && (
-                  <span className="text-[10px] bg-purple-950 text-purple-400 border border-purple-800 px-2 py-0.5 rounded font-mono">
-                    SELECTED
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">Agency tier (display only, fully unlocked)</p>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-white">$167</span>
-                <span className="text-xs text-zinc-500">/ month</span>
-              </div>
-              <ul className="mt-6 space-y-3 text-xs text-zinc-300">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-400" /> Everything in Standard</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-400" /> Unlimited persistent bots</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-400" /> Android APK packaging</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-400" /> No credit limits forever</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => handleStartBuilding()}
-              className="mt-8 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white rounded-xl text-sm font-medium transition"
-            >
-              Select Pro
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-800/80 bg-zinc-950 py-12 px-6 lg:px-12">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-zinc-500">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white tracking-wide">Vibe Engine · Emergent Studio</span>
-            <span>&copy; {new Date().getFullYear()} Free Forever Software Studio.</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/builder" className="hover:text-white transition">Builder</Link>
-            <a href="#features" className="hover:text-white transition">Agents</a>
-            <a href="#pricing" className="hover:text-white transition">Pricing</a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onSuccess={() => {
-          router.push("/builder");
-        }}
-      />
+      <InstallApp />
     </div>
   );
 }

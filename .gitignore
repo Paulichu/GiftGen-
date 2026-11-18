@@ -22,3 +22,13 @@ env/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Studio runtime data
+.data/
+
+# Compiled tests
+frontend/test-dist/
+
+# Local build/typecheck caches and chat screenshots
+*.tsbuildinfo
+artifacts/
