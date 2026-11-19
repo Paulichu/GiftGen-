@@ -87,6 +87,7 @@ after(async () => {
 
 beforeEach(() => {
   limits.approveLimiter.reset();
+  limits.approvePasswordLimiter.reset();
 });
 
 it("signs a valid draft into a token that can be spent once", async () => {
@@ -162,4 +163,46 @@ it("refuses a forged localhost header without the password", async () => {
     params
   );
   assert.equal(response.status, 401);
+});
+
+it("rate-limits wrong approval passwords on a short budget instead of letting them be guessed", async () => {
+  const attempts: number[] = [];
+  for (let index = 0; index < 5; index += 1) {
+    const response = await route.POST(post(draft(), { "x-offer-approval": `guess-${index}` }), params);
+    attempts.push(response.status);
+  }
+  assert.deepEqual(attempts, [401, 401, 401, 401, 401]);
+
+  const blocked = await route.POST(post(draft(), { "x-offer-approval": "guess-5" }), params);
+  const payload = (await blocked.json()) as { error: string };
+  assert.equal(blocked.status, 429);
+  assert.match(payload.error, /Too many wrong approval passwords/);
+  const retryAfter = Number(blocked.headers.get("retry-after"));
+  // Short budget: wait in minutes, not in the full hour of the approval budget.
+  assert.ok(retryAfter > 0 && retryAfter <= 600, `unexpected retry-after ${retryAfter}`);
+});
+
+it("does not spend the approval budget on wrong passwords", async () => {
+  for (let index = 0; index < 5; index += 1) {
+    const wrong = await route.POST(post(draft(), { "x-offer-approval": `typo-${index}` }), params);
+    assert.equal(wrong.status, 401);
+  }
+
+  // Once the typo budget is exhausted, the approval budget still has all its room.
+  limits.approvePasswordLimiter.reset();
+  const response = await route.POST(post(draft()), params);
+  assert.equal(response.status, 200);
+});
+
+it("rate-limits real approvals on their own hourly budget", async () => {
+  for (let index = 0; index < 20; index += 1) {
+    const response = await route.POST(post(draft()), params);
+    assert.equal(response.status, 200, `approval ${index + 1} should be signed`);
+  }
+
+  const blocked = await route.POST(post(draft()), params);
+  const payload = (await blocked.json()) as { error: string };
+  assert.equal(blocked.status, 429);
+  assert.match(payload.error, /Too many approvals/);
+  assert.ok(Number(blocked.headers.get("retry-after")) > 600);
 });

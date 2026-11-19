@@ -4,9 +4,11 @@ import { SlidingWindowLimiter } from "./ratelimit";
 export const approveLimiter = new SlidingWindowLimiter(20, 60 * 60_000);
 
 /**
- * Sending spends two separate budgets so a few typos in the approval password
- * cannot lock the seller out of sending for an hour: wrong passwords draw from
- * a short ten-minute budget, while real sends draw from the hourly one.
+ * Approving and sending spend two separate budgets so a few typos in the
+ * approval password cannot lock the seller out of signing or sending for an
+ * hour: wrong passwords draw from a short ten-minute budget, while real
+ * approvals and real sends draw from their own hourly one.
  */
+export const approvePasswordLimiter = new SlidingWindowLimiter(5, 10 * 60_000);
 export const sendPasswordLimiter = new SlidingWindowLimiter(5, 10 * 60_000);
 export const sendLimiter = new SlidingWindowLimiter(5, 60 * 60_000);
