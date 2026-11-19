@@ -34,7 +34,7 @@ function post(body: unknown, headers: Record<string, string> = {}) {
     method: "POST",
     headers: {
       origin: "http://studio.test",
-      "x-forwarded-for": "127.0.0.1",
+      "x-offer-approval": PASSWORD,
       "content-type": "application/json",
       ...headers,
     },
@@ -154,4 +154,12 @@ it("accepts a remote caller that sends the approval password", async () => {
     params
   );
   assert.equal(response.status, 200);
+});
+
+it("refuses a forged localhost header without the password", async () => {
+  const response = await route.POST(
+    post(draft(), { "x-forwarded-for": "127.0.0.1", "x-offer-approval": "" }),
+    params
+  );
+  assert.equal(response.status, 401);
 });

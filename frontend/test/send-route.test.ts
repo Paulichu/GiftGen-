@@ -14,6 +14,7 @@ let approval: typeof import("../src/lib/studio/approval");
 let limits: typeof import("../src/lib/studio/offerLimits");
 
 const LISTING_ID = "listing01";
+const PASSWORD = "test-approval-password";
 
 function draft(overrides: Partial<EmailDraft> = {}): EmailDraft {
   return {
@@ -28,8 +29,12 @@ function draft(overrides: Partial<EmailDraft> = {}): EmailDraft {
 function post(body: unknown, headers: Record<string, string> = {}) {
   return new Request(`http://studio.test/api/listings/${LISTING_ID}/email/send/`, {
     method: "POST",
-    // Loopback headers stand in for the studio's own machine.
-    headers: { origin: "http://studio.test", "x-forwarded-for": "127.0.0.1", "content-type": "application/json", ...headers },
+    headers: {
+      origin: "http://studio.test",
+      "x-offer-approval": PASSWORD,
+      "content-type": "application/json",
+      ...headers,
+    },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -43,6 +48,7 @@ beforeEach(() => {
 before(async () => {
   // Signing is refused without a configured secret, so the route needs one here.
   process.env.OFFER_EMAIL_SECRET = "test-approval-secret-0123456789";
+  process.env.OFFER_APPROVAL_PASSWORD = PASSWORD;
   previousCwd = process.cwd();
   workspace = await mkdtemp(path.join(tmpdir(), "studio-send-"));
   await mkdir(path.join(workspace, ".data"), { recursive: true });
