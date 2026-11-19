@@ -32,6 +32,19 @@ export interface OfferReply {
   agent: string;
 }
 
+export interface EmailDraft {
+  to: string;
+  from: string;
+  subject: string;
+  body: string;
+}
+
+export interface EmailResult {
+  ok: boolean;
+  sentTo: string;
+  from: string;
+}
+
 export interface JobSummary {
   id: string;
   name: string;
@@ -83,6 +96,9 @@ export const studio = {
   removeListing: (id: string) => request<{ ok: boolean }>(`/api/listings/${id}`, { method: "DELETE" }),
   askOffer: (slug: string, message: string) =>
     request<OfferReply>(`/api/offers/${slug}/chat`, { method: "POST", body: JSON.stringify({ message }) }),
+  emailDraft: (id: string) => request<EmailDraft>(`/api/listings/${id}/email`),
+  sendListingEmail: (id: string, draft: EmailDraft) =>
+    request<EmailResult>(`/api/listings/${id}/email`, { method: "POST", body: JSON.stringify(draft) }),
 };
 
 export function errorMessage(error: unknown): string {

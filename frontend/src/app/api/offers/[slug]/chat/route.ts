@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
+import { clientKey, SlidingWindowLimiter } from "@/lib/studio/ratelimit";
 import { replyToBuyer } from "@/lib/studio/sales";
 import { findJob, findListingBySlug } from "@/lib/studio/store";
 
 export const dynamic = "force-dynamic";
 
+// Six questions per minute per IP: enough for a real buyer, useless for a spammer.
+const QUESTIONS_PER_MINUTE = 6;
+const chatLimiter = new SlidingWindowLimiter(QUESTIONS_PER_MINUTE, 60_000);
+
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
+  const limit = chatLimiter.check(clientKey(request));
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: `Too many questions — try again in ${limit.retryAfterSeconds}s.` },
+      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: { message?: unknown };
   try {
     body = (await request.json()) as { message?: unknown };

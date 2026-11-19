@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SELLER } from "@/lib/seller";
 import { slugify, uniqueSlug } from "@/lib/studio/sales";
 import { newId, nowIso, readDb, withDb } from "@/lib/studio/store";
 import type { AgentTone, Currency, Listing } from "@/lib/studio/types";
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
   const currency: Currency = CURRENCIES.includes(body.currency as Currency)
     ? (body.currency as Currency)
     : "PLN";
-  const contact = text(body.contact, 160);
+  const contact = text(body.contact, 160) || SELLER.email;
   const agentName = text(body.agentName, 40) || "Sales";
   const tone: AgentTone = TONES.includes(body.tone as AgentTone) ? (body.tone as AgentTone) : "friendly";
   const highlights = readHighlights(body.highlights);

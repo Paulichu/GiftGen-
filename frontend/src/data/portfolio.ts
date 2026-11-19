@@ -1,3 +1,5 @@
+import { SELLER } from "@/lib/seller";
+
 export type Language = "pl" | "en" | "de";
 
 export interface TriText {
@@ -46,21 +48,24 @@ export interface VideoItem {
   desc: TriText;
 }
 
+// Contact channels come from SELLER so the showroom, offers and emails agree.
 export const MONETIZATION_INFO = {
-  founder: "Paulina Jakubowska",
+  founder: SELLER.name,
   role: "Founder & Lead Architect",
-  company: "INCANTO / OJJJA.XYZ",
-  seller: "Paulina Jakubowska • INCANTO / OJJJA.XYZ",
+  company: SELLER.company,
+  seller: `${SELLER.name} • ${SELLER.company}`,
   registeredCity: "NRW, Germany (100% remote, online call / Teams)",
-  replyToEmail: "compliance@ojjja.site",
-  contactEmail: "compliance@ojjja.site",
-  directEmail: "admin@ojjja.site",
-  ipEmail: "ip@ojjja.site",
-  supportEmail: "ip@ojjja.site",
-  paypalEmail: "admin@ojjja.site",
-  whatsapp: "+49 152 10200523",
-  whatsappUrl: "https://wa.me/4915210200523",
-  linkedin: "https://www.linkedin.com/in/paulina-jakubowska-65712b163",
+  city: SELLER.city,
+  location: SELLER.location,
+  replyToEmail: SELLER.complianceEmail,
+  contactEmail: SELLER.complianceEmail,
+  directEmail: SELLER.adminEmail,
+  ipEmail: SELLER.email,
+  supportEmail: SELLER.email,
+  paypalEmail: SELLER.paypalEmail,
+  whatsapp: SELLER.whatsapp,
+  whatsappUrl: SELLER.whatsappUrl,
+  linkedin: SELLER.linkedin,
   crypto: {
     eth: "0x89ee3f2a2a7ddc9de821f93623aab58593cb1b59",
     btc: "bc1q3vkqn8mgnpvz9cj07scjpz65wn8j7fl9akp24p"

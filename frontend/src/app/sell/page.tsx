@@ -8,12 +8,15 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Mail,
   Rocket,
+  Send,
   Store,
   Tag,
   Trash2,
 } from "lucide-react";
-import { errorMessage, studio, type JobSummary, type ListingSummary } from "@/lib/studio/client";
+import { SELLER, SELLER_SENDERS } from "@/lib/seller";
+import { errorMessage, studio, type EmailDraft, type JobSummary, type ListingSummary } from "@/lib/studio/client";
 import type { AgentTone, Currency } from "@/lib/studio/types";
 
 const TONES: Array<{ id: AgentTone; label: string }> = [
@@ -26,6 +29,129 @@ const CURRENCIES: Currency[] = ["PLN", "EUR", "USD"];
 
 const inputClass =
   "w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-indigo-500";
+
+function EmailOffer({ listing }: { listing: ListingSummary }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<EmailDraft | null>(null);
+  const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function prepare() {
+    setOpen(true);
+    if (draft || loading) return;
+    setLoading(true);
+    setStatus(null);
+    try {
+      setDraft(await studio.emailDraft(listing.id));
+    } catch (caught) {
+      setStatus({ kind: "error", text: errorMessage(caught) });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function send() {
+    if (!draft) return;
+    setSending(true);
+    setStatus(null);
+    try {
+      const result = await studio.sendListingEmail(listing.id, draft);
+      setStatus({ kind: "ok", text: `Sent to ${result.sentTo} from ${result.from}.` });
+      setDraft({ ...draft, to: "" });
+    } catch (caught) {
+      setStatus({ kind: "error", text: errorMessage(caught) });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => void prepare()}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-1.5 text-[11px] text-zinc-300 transition hover:border-zinc-600 hover:text-white"
+      >
+        <Mail className="h-3.5 w-3.5" /> Email this offer
+      </button>
+
+      {open ? (
+        <div className="mt-2 grid gap-2 rounded-xl border border-zinc-800/80 p-3">
+          {loading ? <p className="text-[11px] text-zinc-500">Preparing the draft…</p> : null}
+          {draft ? (
+            <>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="text-[11px] text-zinc-400">
+                  From
+                  <select
+                    value={draft.from}
+                    onChange={(event) => setDraft({ ...draft, from: event.target.value })}
+                    className={`mt-1 ${inputClass}`}
+                  >
+                    {SELLER_SENDERS.map((address) => (
+                      <option key={address} value={address}>
+                        {address}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-400">
+                  To (buyer)
+                  <input
+                    type="email"
+                    value={draft.to}
+                    onChange={(event) => setDraft({ ...draft, to: event.target.value })}
+                    placeholder="buyer@example.com"
+                    className={`mt-1 ${inputClass}`}
+                  />
+                </label>
+                <label className="text-[11px] text-zinc-400 sm:col-span-2">
+                  Subject
+                  <input
+                    value={draft.subject}
+                    onChange={(event) => setDraft({ ...draft, subject: event.target.value })}
+                    className={`mt-1 ${inputClass}`}
+                  />
+                </label>
+                <label className="text-[11px] text-zinc-400 sm:col-span-2">
+                  Message
+                  <textarea
+                    value={draft.body}
+                    onChange={(event) => setDraft({ ...draft, body: event.target.value })}
+                    rows={9}
+                    className={`mt-1 resize-y font-mono text-[11px] leading-relaxed ${inputClass}`}
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={sending || !draft.to.trim()}
+                  onClick={() => void send()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Approve &amp; send
+                </button>
+                <span className="text-[10px] text-zinc-500">Nothing leaves the studio until you approve.</span>
+              </div>
+            </>
+          ) : null}
+          {status ? (
+            <p className={`text-[11px] ${status.kind === "ok" ? "text-emerald-400" : "text-red-400"}`}>{status.text}</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="justify-self-start text-[10px] text-zinc-500 transition hover:text-zinc-300"
+          >
+            Close
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ListingCard({
   listing,
@@ -41,7 +167,7 @@ function ListingCard({
   copied: string | null;
 }) {
   const [price, setPrice] = useState(String(listing.price));
-  const [contact, setContact] = useState("");
+  const [contact, setContact] = useState<string>(SELLER.email);
   const [agentName, setAgentName] = useState(listing.agentName);
   const [tone, setTone] = useState<AgentTone>("friendly");
   const [highlights, setHighlights] = useState("");
@@ -112,7 +238,7 @@ function ListingCard({
             <input
               value={contact}
               onChange={(event) => setContact(event.target.value)}
-              placeholder="hello@studio.dev"
+              placeholder={SELLER.email}
               className={`mt-1 ${inputClass}`}
             />
           </label>
@@ -157,6 +283,8 @@ function ListingCard({
         </div>
         {error ? <p className="mt-2 text-[11px] text-red-400">{error}</p> : null}
       </details>
+
+      <EmailOffer listing={listing} />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
@@ -214,7 +342,7 @@ export default function SellPage() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("1200");
   const [currency, setCurrency] = useState<Currency>("PLN");
-  const [contact, setContact] = useState("");
+  const [contact, setContact] = useState<string>(SELLER.email);
   const [agentName, setAgentName] = useState("Alex");
   const [tone, setTone] = useState<AgentTone>("friendly");
   const [highlights, setHighlights] = useState("");
@@ -236,6 +364,12 @@ export default function SellPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // "Sell this build" links here with ?job=<id>.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("job");
+    if (requested && jobs.some((job) => job.id === requested)) setJobId(requested);
+  }, [jobs]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -350,7 +484,7 @@ export default function SellPage() {
               <input
                 value={contact}
                 onChange={(event) => setContact(event.target.value)}
-                placeholder="hello@studio.dev"
+                placeholder={SELLER.email}
                 required
                 className={`mt-1 ${inputClass}`}
               />

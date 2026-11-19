@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye, Sparkles } from "lucide-react";
 import SalesAgentChat from "@/components/SalesAgentChat";
+import { SELLER } from "@/lib/seller";
 import { appTypeLabel, buildPitch, demoPath, formatPrice } from "@/lib/studio/sales";
 import { findJob, findListingBySlug } from "@/lib/studio/store";
 
@@ -92,6 +93,23 @@ export default async function OfferPage({ params }: { params: { slug: string } }
               >
                 Contact the seller · {listing.agent.contact}
               </a>
+              <div className="mt-4 border-t border-zinc-800 pt-3 text-[11px] leading-relaxed text-zinc-500">
+                Sold by <span className="text-zinc-300">{SELLER.name}</span> · {SELLER.location}
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <a href={`mailto:${SELLER.complianceEmail}`} className="hover:text-white">
+                    {SELLER.complianceEmail}
+                  </a>
+                  <a href={SELLER.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-white">
+                    WhatsApp
+                  </a>
+                  <a href={SELLER.linkedin} target="_blank" rel="noreferrer" className="hover:text-white">
+                    LinkedIn
+                  </a>
+                  <a href={SELLER.youtube} target="_blank" rel="noreferrer" className="hover:text-white">
+                    YouTube
+                  </a>
+                </div>
+              </div>
             </section>
           </div>
 
