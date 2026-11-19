@@ -3,28 +3,37 @@ import { ApprovalConfigError, offerApproval } from "../../../../../../lib/studio
 import { EmailError, sendEmail } from "../../../../../../lib/studio/email";
 import { approvalGate } from "../../../../../../lib/studio/gate";
 import { sameOrigin } from "../../../../../../lib/studio/http";
-import { sendLimiter } from "../../../../../../lib/studio/offerLimits";
+import { sendLimiter, sendPasswordLimiter } from "../../../../../../lib/studio/offerLimits";
 import { clientKey } from "../../../../../../lib/studio/ratelimit";
 import { findListing } from "../../../../../../lib/studio/store";
 
 export const dynamic = "force-dynamic";
+
+function tooMany(error: string, retryAfterSeconds: number) {
+  return NextResponse.json(
+    { error: `${error} Try again in ${Math.ceil(retryAfterSeconds / 60)} min.` },
+    { status: 429, headers: { "retry-after": String(retryAfterSeconds) } }
+  );
+}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   if (!sameOrigin(request)) {
     return NextResponse.json({ error: "Cross-origin email requests are not allowed." }, { status: 403 });
   }
 
-  // Count every attempt, including wrong passwords, before checking the gate.
-  const limit = sendLimiter.check(clientKey(request));
-  if (!limit.allowed) {
-    return NextResponse.json(
-      { error: `Too many attempts — try again in ${Math.ceil(limit.retryAfterSeconds / 60)} min.` },
-      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } }
-    );
+  // Guess protection runs before the password is compared, but only wrong
+  // passwords are counted, and they spend a short budget of their own.
+  const key = clientKey(request);
+  const passwordBudget = sendPasswordLimiter.peek(key);
+  if (!passwordBudget.allowed) {
+    return tooMany("Too many wrong approval passwords.", passwordBudget.retryAfterSeconds);
   }
 
   const gate = approvalGate(request);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  if (!gate.ok) {
+    sendPasswordLimiter.record(key);
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
 
   if (!(await findListing(params.id))) {
     return NextResponse.json({ error: "Listing not found." }, { status: 404 });
@@ -35,6 +44,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
     body = (await request.json()) as { token?: unknown };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  // Sends get their own hourly budget, checked before the token is spent so a
+  // throttled request never burns a valid approval.
+  const sendBudget = sendLimiter.check(key);
+  if (!sendBudget.allowed) {
+    return tooMany("Too many sends.", sendBudget.retryAfterSeconds);
   }
 
   try {

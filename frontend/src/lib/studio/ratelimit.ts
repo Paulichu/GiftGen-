@@ -22,6 +22,20 @@ export class SlidingWindowLimiter {
   }
 
   check(key: string, now = Date.now()): RateLimitResult {
+    return this.result(key, now, true);
+  }
+
+  /** Reports whether one more hit fits, without counting it. */
+  peek(key: string, now = Date.now()): RateLimitResult {
+    return this.result(key, now, false);
+  }
+
+  /** Counts a hit after the fact, e.g. only once an attempt is known to be wrong. */
+  record(key: string, now = Date.now()): RateLimitResult {
+    return this.result(key, now, true);
+  }
+
+  private result(key: string, now: number, record: boolean): RateLimitResult {
     const since = now - this.windowMs;
     const recent = (this.hits.get(key) ?? []).filter((stamp) => stamp > since);
 
@@ -29,6 +43,11 @@ export class SlidingWindowLimiter {
       this.hits.set(key, recent);
       const retryAfterSeconds = Math.max(1, Math.ceil((recent[0] + this.windowMs - now) / 1000));
       return { allowed: false, remaining: 0, retryAfterSeconds };
+    }
+
+    if (!record) {
+      this.hits.set(key, recent);
+      return { allowed: true, remaining: this.limit - recent.length, retryAfterSeconds: 0 };
     }
 
     recent.push(now);

@@ -43,6 +43,7 @@ const params = { params: { id: LISTING_ID } };
 
 beforeEach(() => {
   limits.sendLimiter.reset();
+  limits.sendPasswordLimiter.reset();
 });
 
 before(async () => {
@@ -138,7 +139,7 @@ it("refuses a token when no signing secret is configured", async () => {
   }
 });
 
-it("rate-limits wrong approval passwords instead of letting them be guessed", async () => {
+it("rate-limits wrong approval passwords on a short budget instead of letting them be guessed", async () => {
   const attempts: number[] = [];
   for (let index = 0; index < 5; index += 1) {
     const response = await route.POST(post({ token: "x" }, { "x-offer-approval": `guess-${index}` }), params);
@@ -149,8 +150,47 @@ it("rate-limits wrong approval passwords instead of letting them be guessed", as
   const blocked = await route.POST(post({ token: "x" }, { "x-offer-approval": "guess-5" }), params);
   const payload = (await blocked.json()) as { error: string };
   assert.equal(blocked.status, 429);
-  assert.match(payload.error, /Too many attempts/);
-  assert.ok(Number(blocked.headers.get("retry-after")) > 0);
+  assert.match(payload.error, /Too many wrong approval passwords/);
+  const retryAfter = Number(blocked.headers.get("retry-after"));
+  // Short budget: wait in minutes, not in the full hour of the send budget.
+  assert.ok(retryAfter > 0 && retryAfter <= 600, `unexpected retry-after ${retryAfter}`);
+});
+
+it("does not spend the send budget on wrong passwords", async () => {
+  for (let index = 0; index < 5; index += 1) {
+    const wrong = await route.POST(post({ token: "x" }, { "x-offer-approval": `typo-${index}` }), params);
+    assert.equal(wrong.status, 401);
+  }
+
+  // Once the typo budget is exhausted, the send budget still has all its room.
+  limits.sendPasswordLimiter.reset();
+  const { token } = approval.offerApproval().issue(LISTING_ID, draft());
+  const sent = await route.POST(post({ token }), params);
+  const payload = (await sent.json()) as { error?: string };
+  assert.equal(sent.status, 503);
+  assert.match(payload.error ?? "", /SMTP_PASS/);
+});
+
+it("rate-limits real sends on their own hourly budget", async () => {
+  for (let index = 0; index < 5; index += 1) {
+    const { token } = approval.offerApproval().issue(LISTING_ID, draft());
+    const response = await route.POST(post({ token }), params);
+    const payload = (await response.json()) as { error?: string };
+    assert.equal(response.status, 503);
+    assert.match(payload.error ?? "", /SMTP_PASS/);
+  }
+
+  const { token } = approval.offerApproval().issue(LISTING_ID, draft());
+  const blocked = await route.POST(post({ token }), params);
+  const payload = (await blocked.json()) as { error: string };
+  assert.equal(blocked.status, 429);
+  assert.match(payload.error, /Too many sends/);
+  assert.ok(Number(blocked.headers.get("retry-after")) > 600);
+
+  // The throttled approval was not spent, so it still works once the hour rolls over.
+  limits.sendLimiter.reset();
+  const retried = await route.POST(post({ token }), params);
+  assert.equal(retried.status, 503);
 });
 
 it("consumes the approval, then refuses to reuse it", async () => {
