@@ -33,6 +33,7 @@ const inputClass =
 function EmailOffer({ listing }: { listing: ListingSummary }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<EmailDraft | null>(null);
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -56,8 +57,8 @@ function EmailOffer({ listing }: { listing: ListingSummary }) {
     setSending(true);
     setStatus(null);
     try {
-      const approval = await studio.approveEmail(listing.id, draft);
-      const result = await studio.sendApprovedEmail(listing.id, approval.token);
+      const approval = await studio.approveEmail(listing.id, draft, password);
+      const result = await studio.sendApprovedEmail(listing.id, approval.token, password);
       setStatus({ kind: "ok", text: `Sent to ${result.sentTo} from ${result.from}.` });
       setDraft({ ...draft, to: "" });
     } catch (caught) {
@@ -104,6 +105,17 @@ function EmailOffer({ listing }: { listing: ListingSummary }) {
                     value={draft.to}
                     onChange={(event) => setDraft({ ...draft, to: event.target.value })}
                     placeholder="buyer@example.com"
+                    className={`mt-1 ${inputClass}`}
+                  />
+                </label>
+                <label className="text-[11px] text-zinc-400 sm:col-span-2">
+Approval password
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="OFFER_APPROVAL_PASSWORD"
+                    autoComplete="off"
                     className={`mt-1 ${inputClass}`}
                   />
                 </label>

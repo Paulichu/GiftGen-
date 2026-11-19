@@ -102,11 +102,24 @@ export const studio = {
   askOffer: (slug: string, message: string) =>
     request<OfferReply>(`/api/offers/${slug}/chat`, { method: "POST", body: JSON.stringify({ message }) }),
   emailDraft: (id: string) => request<EmailDraft>(`/api/listings/${id}/email`),
-  approveEmail: (id: string, draft: EmailDraft) =>
-    request<EmailApproval>(`/api/listings/${id}/email/approve`, { method: "POST", body: JSON.stringify(draft) }),
-  sendApprovedEmail: (id: string, token: string) =>
-    request<EmailResult>(`/api/listings/${id}/email/send`, { method: "POST", body: JSON.stringify({ token }) }),
+  approveEmail: (id: string, draft: EmailDraft, password = "") =>
+    request<EmailApproval>(`/api/listings/${id}/email/approve`, {
+      method: "POST",
+      body: JSON.stringify(draft),
+      headers: approvalHeaders(password),
+    }),
+  sendApprovedEmail: (id: string, token: string, password = "") =>
+    request<EmailResult>(`/api/listings/${id}/email/send`, {
+      method: "POST",
+      body: JSON.stringify({ token }),
+      headers: approvalHeaders(password),
+    }),
 };
+
+function approvalHeaders(password: string): Record<string, string> {
+  const trimmed = password.trim();
+  return trimmed ? { "x-offer-approval": trimmed } : {};
+}
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong.";

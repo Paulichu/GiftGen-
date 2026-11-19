@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { EmailDraft } from "./email";
 
 const TOKEN_TTL_MS = 15 * 60_000;
@@ -128,10 +128,27 @@ export class ApprovalTokens {
   }
 }
 
+export class ApprovalConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApprovalConfigError";
+  }
+}
+
+let cached: { secret: string; tokens: ApprovalTokens } | null = null;
+
 /**
- * A dedicated secret keeps tokens valid across restarts and instances. Without
- * it the fallback is per-process, so pending approvals die with the server.
+ * There is deliberately no random fallback: a secret the process invents would
+ * silently accept tokens nobody else can verify, and makes a missing config
+ * look like a working deployment. Without OFFER_EMAIL_SECRET approvals are off.
  */
-export const offerApproval = new ApprovalTokens(
-  process.env.OFFER_EMAIL_SECRET?.trim() || randomBytes(32).toString("hex")
-);
+export function offerApproval(env: Record<string, string | undefined> = process.env): ApprovalTokens {
+  const secret = env.OFFER_EMAIL_SECRET?.trim();
+  if (!secret || secret.length < 16) {
+    throw new ApprovalConfigError(
+      "Email approvals are not configured. Set OFFER_EMAIL_SECRET (at least 16 characters) and restart the studio."
+    );
+  }
+  if (!cached || cached.secret !== secret) cached = { secret, tokens: new ApprovalTokens(secret) };
+  return cached.tokens;
+}

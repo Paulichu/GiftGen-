@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { offerApproval } from "@/lib/studio/approval";
-import { validateEmail } from "@/lib/studio/email";
-import { sameOrigin } from "@/lib/studio/http";
-import { clientKey, SlidingWindowLimiter } from "@/lib/studio/ratelimit";
-import { findListing } from "@/lib/studio/store";
+import { ApprovalConfigError, offerApproval } from "../../../../../../lib/studio/approval";
+import { validateEmail } from "../../../../../../lib/studio/email";
+import { approvalGate } from "../../../../../../lib/studio/gate";
+import { sameOrigin } from "../../../../../../lib/studio/http";
+import { approveLimiter } from "../../../../../../lib/studio/offerLimits";
+import { clientKey } from "../../../../../../lib/studio/ratelimit";
+import { findListing } from "../../../../../../lib/studio/store";
 
 export const dynamic = "force-dynamic";
-
-const approveLimiter = new SlidingWindowLimiter(20, 60 * 60_000);
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   if (!sameOrigin(request)) {
     return NextResponse.json({ error: "Cross-origin email requests are not allowed." }, { status: 403 });
   }
+
+  const gate = approvalGate(request);
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   const limit = approveLimiter.check(clientKey(request));
   if (!limit.allowed) {
@@ -36,6 +39,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const checked = validateEmail(body);
   if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
 
-  const approval = offerApproval.issue(params.id, checked.value);
-  return NextResponse.json(approval);
+  try {
+    return NextResponse.json(offerApproval().issue(params.id, checked.value));
+  } catch (error) {
+    if (error instanceof ApprovalConfigError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    return NextResponse.json({ error: "The approval could not be signed." }, { status: 500 });
+  }
 }

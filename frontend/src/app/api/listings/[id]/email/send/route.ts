@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { offerApproval } from "../../../../../../lib/studio/approval";
+import { ApprovalConfigError, offerApproval } from "../../../../../../lib/studio/approval";
 import { EmailError, sendEmail } from "../../../../../../lib/studio/email";
+import { approvalGate } from "../../../../../../lib/studio/gate";
 import { sameOrigin } from "../../../../../../lib/studio/http";
-import { clientKey, SlidingWindowLimiter } from "../../../../../../lib/studio/ratelimit";
+import { sendLimiter } from "../../../../../../lib/studio/offerLimits";
+import { clientKey } from "../../../../../../lib/studio/ratelimit";
 import { findListing } from "../../../../../../lib/studio/store";
 
 export const dynamic = "force-dynamic";
-
-const sendLimiter = new SlidingWindowLimiter(5, 60 * 60_000);
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   if (!sameOrigin(request)) {
     return NextResponse.json({ error: "Cross-origin email requests are not allowed." }, { status: 403 });
   }
+
+  const gate = approvalGate(request);
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   const limit = sendLimiter.check(clientKey(request));
   if (!limit.allowed) {
@@ -33,15 +36,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const approval = offerApproval.consume(body.token, params.id);
-  if (!approval.ok) {
-    return NextResponse.json({ error: approval.error }, { status: approval.status });
-  }
-
   try {
+    const approval = offerApproval().consume(body.token, params.id);
+    if (!approval.ok) {
+      return NextResponse.json({ error: approval.error }, { status: approval.status });
+    }
+
     const result = await sendEmail(approval.draft);
     return NextResponse.json({ ok: true, sentTo: result.to, from: result.from });
   } catch (error) {
+    if (error instanceof ApprovalConfigError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     if (error instanceof EmailError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
