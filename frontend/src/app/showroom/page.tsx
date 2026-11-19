@@ -6,6 +6,7 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Bug,
   Zap,
   Play,
   X,
@@ -734,6 +735,76 @@ export default function ShowroomPage() {
         </div>
       </section>
 
+      {/* Security / Bug Bounty */}
+      <section id="security" className="py-16 px-6 lg:px-12 max-w-6xl mx-auto border-t border-white/[0.08]">
+        <div className="rounded-3xl bg-[#0a0f1c] border border-white/10 p-6 sm:p-10">
+          <span className="inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-[11px] font-semibold text-teal-300">
+            <Bug className="w-3.5 h-3.5" /> Security / Bug Bounty
+          </span>
+
+          <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            {lang === "pl"
+              ? "Znalazłeś lukę? Zgłoś ją prywatnie."
+              : lang === "de"
+                ? "Sicherheitslücke gefunden? Melde sie vertraulich."
+                : "Found a vulnerability? Report it privately."}
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+            {lang === "pl"
+              ? "Prowadzimy Bug Bounty dla tej strony, aplikacji demonstracyjnych i buildów generowanych w studio. Napisz na ip@ojjja.site z opisem i minimalnym PoC — nie publikuj szczegółów, zanim odpowiemy."
+              : lang === "de"
+                ? "Wir betreiben ein Bug Bounty für diese Seite, die Demo-Apps und im Studio generierte Builds. Schreib an ip@ojjja.site mit Beschreibung und minimalem PoC — veröffentliche nichts, bevor wir antworten."
+                : "We run a bug bounty for this site, the demo apps and builds generated in the studio. Email ip@ojjja.site with a description and a minimal PoC — please don't publish details before we reply."}
+          </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-teal-300">
+                {lang === "pl" ? "W zakresie" : lang === "de" ? "Im Scope" : "In scope"}
+              </h3>
+              <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
+                <li>• ojja.site / ojjja.site showcase &amp; contact forms</li>
+                <li>• demo apps and generated builds</li>
+                <li>• studio API (preview, listings, agents)</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-teal-300">
+                {lang === "pl" ? "Zasady" : lang === "de" ? "Regeln" : "Rules"}
+              </h3>
+              <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
+                <li>• {lang === "pl" ? "żadnego eksportu cudzych danych" : lang === "de" ? "keine fremden Daten exfiltrieren" : "no exfiltration of other people's data"}</li>
+                <li>• {lang === "pl" ? "bez DoS, spamu i socjotechniki" : lang === "de" ? "kein DoS, Spam oder Social Engineering" : "no DoS, spam or social engineering"}</li>
+                <li>• {lang === "pl" ? "90 dni na naprawę przed publikacją" : lang === "de" ? "90 Tage Frist vor Veröffentlichung" : "90 days to fix before disclosure"}</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-teal-300">
+                {lang === "pl" ? "Nagroda" : lang === "de" ? "Prämie" : "Reward"}
+              </h3>
+              <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
+                <li>• {lang === "pl" ? "uznanie w podziękowaniach (na życzenie anonimowo)" : lang === "de" ? "Nennung im Dank (anonym auf Wunsch)" : "credit in the thanks list (anonymous on request)"}</li>
+                <li>• {lang === "pl" ? "nagroda pieniężna ustalana indywidualnie według wagi luki" : lang === "de" ? "Geldprämie individuell nach Schweregrad" : "cash reward agreed per report, based on severity"}</li>
+                <li>• {lang === "pl" ? "wypłata PayPal / przelew po potwierdzeniu i naprawie" : lang === "de" ? "Auszahlung per PayPal / Überweisung nach Fix" : "paid by PayPal / bank transfer after the fix"}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <a
+              href={`mailto:${MONETIZATION_INFO.ipEmail}?subject=${encodeURIComponent("Bug Bounty report — ojja.site")}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-400 px-4 py-2.5 text-xs font-extrabold text-black transition hover:bg-teal-300"
+            >
+              <Mail className="w-4 h-4" /> {MONETIZATION_INFO.ipEmail}
+            </a>
+            <a href={`mailto:${MONETIZATION_INFO.replyToEmail}`} className="text-xs text-zinc-400 hover:text-white">
+              {lang === "pl" ? "formalnie / compliance: " : "compliance: "}
+              {MONETIZATION_INFO.replyToEmail}
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t border-white/[0.08] bg-[#020306] py-12 px-6 lg:px-12 text-xs text-zinc-500">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -743,7 +814,7 @@ export default function ShowroomPage() {
             </div>
             <div>
               <p className="font-bold text-white tracking-wide">PAULINA JAKUBOWSKA • INCANTO / OJJJA.XYZ</p>
-              <p className="text-[11px] text-zinc-500">NRW, Germany (100% remote) • Reply to: compliance@ojjja.site</p>
+              <p className="text-[11px] text-zinc-500">{MONETIZATION_INFO.location} (100% remote) • Reply to: compliance@ojjja.site</p>
             </div>
           </div>
 
@@ -756,6 +827,9 @@ export default function ShowroomPage() {
             </a>
             <a href={`mailto:${MONETIZATION_INFO.replyToEmail}`} className="hover:text-white transition">
               compliance@ojjja.site
+            </a>
+            <a href="#security" className="hover:text-white transition">
+              Bug Bounty
             </a>
           </div>
         </div>
