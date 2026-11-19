@@ -2,19 +2,12 @@ import { NextResponse } from "next/server";
 import { ApprovalConfigError, offerApproval } from "../../../../../../lib/studio/approval";
 import { EmailError, sendEmail } from "../../../../../../lib/studio/email";
 import { approvalGate } from "../../../../../../lib/studio/gate";
-import { sameOrigin } from "../../../../../../lib/studio/http";
+import { rateLimited, sameOrigin } from "../../../../../../lib/studio/http";
 import { sendLimiter, sendPasswordLimiter } from "../../../../../../lib/studio/offerLimits";
 import { clientKey } from "../../../../../../lib/studio/ratelimit";
 import { findListing } from "../../../../../../lib/studio/store";
 
 export const dynamic = "force-dynamic";
-
-function tooMany(error: string, retryAfterSeconds: number) {
-  return NextResponse.json(
-    { error: `${error} Try again in ${Math.ceil(retryAfterSeconds / 60)} min.` },
-    { status: 429, headers: { "retry-after": String(retryAfterSeconds) } }
-  );
-}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   if (!sameOrigin(request)) {
@@ -26,7 +19,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const key = clientKey(request);
   const passwordBudget = sendPasswordLimiter.peek(key);
   if (!passwordBudget.allowed) {
-    return tooMany("Too many wrong approval passwords.", passwordBudget.retryAfterSeconds);
+    return rateLimited("Too many wrong approval passwords.", passwordBudget.retryAfterSeconds);
   }
 
   const gate = approvalGate(request);
@@ -50,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // throttled request never burns a valid approval.
   const sendBudget = sendLimiter.check(key);
   if (!sendBudget.allowed) {
-    return tooMany("Too many sends.", sendBudget.retryAfterSeconds);
+    return rateLimited("Too many sends.", sendBudget.retryAfterSeconds);
   }
 
   try {

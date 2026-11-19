@@ -30,6 +30,29 @@ it("lets the window expire and keeps keys independent", () => {
   assert.equal(limiter.check("a", start + 1_001).allowed, true, "the window slid past the old hits");
 });
 
+it("peeks without spending a hit and records only when told", () => {
+  const limiter = new SlidingWindowLimiter(2, 1_000);
+  const start = 7_000;
+
+  assert.equal(limiter.peek("ip", start).allowed, true);
+  assert.equal(limiter.peek("ip", start).remaining, 2, "peeking twice still spends nothing");
+
+  const first = limiter.record("ip", start + 10);
+  assert.equal(first.allowed, true);
+  assert.equal(first.remaining, 1);
+
+  assert.equal(limiter.record("ip", start + 20).allowed, true);
+
+  const full = limiter.peek("ip", start + 30);
+  assert.equal(full.allowed, false);
+  assert.equal(full.retryAfterSeconds, 1);
+
+  const over = limiter.record("ip", start + 40);
+  assert.equal(over.allowed, false, "recording over the budget is refused, not counted");
+
+  assert.equal(limiter.peek("ip", start + 1_011).allowed, true, "only recorded hits fill the window");
+});
+
 it("never grows without bound when many IPs ask once", () => {
   const limiter = new SlidingWindowLimiter(6, 1_000);
 
