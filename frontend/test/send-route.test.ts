@@ -138,6 +138,21 @@ it("refuses a token when no signing secret is configured", async () => {
   }
 });
 
+it("rate-limits wrong approval passwords instead of letting them be guessed", async () => {
+  const attempts: number[] = [];
+  for (let index = 0; index < 5; index += 1) {
+    const response = await route.POST(post({ token: "x" }, { "x-offer-approval": `guess-${index}` }), params);
+    attempts.push(response.status);
+  }
+  assert.deepEqual(attempts, [401, 401, 401, 401, 401]);
+
+  const blocked = await route.POST(post({ token: "x" }, { "x-offer-approval": "guess-5" }), params);
+  const payload = (await blocked.json()) as { error: string };
+  assert.equal(blocked.status, 429);
+  assert.match(payload.error, /Too many attempts/);
+  assert.ok(Number(blocked.headers.get("retry-after")) > 0);
+});
+
 it("consumes the approval, then refuses to reuse it", async () => {
   const { token } = approval.offerApproval().issue(LISTING_ID, draft());
 

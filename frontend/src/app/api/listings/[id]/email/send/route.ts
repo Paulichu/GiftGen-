@@ -14,16 +14,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Cross-origin email requests are not allowed." }, { status: 403 });
   }
 
-  const gate = approvalGate(request);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
-
+  // Count every attempt, including wrong passwords, before checking the gate.
   const limit = sendLimiter.check(clientKey(request));
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: `Too many emails — try again in ${Math.ceil(limit.retryAfterSeconds / 60)} min.` },
+      { error: `Too many attempts — try again in ${Math.ceil(limit.retryAfterSeconds / 60)} min.` },
       { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } }
     );
   }
+
+  const gate = approvalGate(request);
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   if (!(await findListing(params.id))) {
     return NextResponse.json({ error: "Listing not found." }, { status: 404 });
