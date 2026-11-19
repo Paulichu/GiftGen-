@@ -638,6 +638,14 @@ export default function ShowroomPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-amber-400" />
+                  <span className="text-zinc-400">SideProjectors:</span>
+                  <a href={MONETIZATION_INFO.sideProjectors} target="_blank" rel="noopener noreferrer" className="text-amber-300 hover:underline">
+                    14 builds for sale
+                  </a>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <Globe className="w-4 h-4 text-purple-400" />
                   <span className="text-zinc-400">Lokalizacja:</span>
                   <span className="text-zinc-200">{MONETIZATION_INFO.registeredCity}</span>

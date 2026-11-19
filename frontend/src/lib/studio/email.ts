@@ -48,6 +48,7 @@ export function composeOfferEmail(
     SELLER.location,
     `${SELLER.email} · WhatsApp ${SELLER.whatsapp}`,
     SELLER.linkedin,
+    `More builds for sale: ${SELLER.sideProjectors}`,
   ];
 
   return {

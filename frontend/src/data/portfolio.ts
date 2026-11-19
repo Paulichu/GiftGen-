@@ -66,6 +66,7 @@ export const MONETIZATION_INFO = {
   whatsapp: SELLER.whatsapp,
   whatsappUrl: SELLER.whatsappUrl,
   linkedin: SELLER.linkedin,
+  sideProjectors: SELLER.sideProjectors,
   crypto: {
     eth: "0x89ee3f2a2a7ddc9de821f93623aab58593cb1b59",
     btc: "bc1q3vkqn8mgnpvz9cj07scjpz65wn8j7fl9akp24p"

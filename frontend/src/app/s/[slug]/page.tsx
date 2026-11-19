@@ -108,6 +108,9 @@ export default async function OfferPage({ params }: { params: { slug: string } }
                   <a href={SELLER.youtube} target="_blank" rel="noreferrer" className="hover:text-white">
                     YouTube
                   </a>
+                  <a href={SELLER.sideProjectors} target="_blank" rel="noreferrer" className="hover:text-white">
+                    SideProjectors
+                  </a>
                 </div>
               </div>
             </section>

@@ -17,6 +17,7 @@ export const SELLER = {
   whatsapp: "+49 152 10200523",
   whatsappUrl: "https://wa.me/4915210200523",
   youtube: "https://www.youtube.com/@paulajak8276",
+  sideProjectors: "https://www.sideprojectors.com/user/profile/253179/projects",
 } as const;
 
 /** Mailboxes the studio is allowed to send offers from. */
