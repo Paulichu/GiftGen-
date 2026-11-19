@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { sameOrigin } from "../approve/route";
-import { offerApproval } from "@/lib/studio/approval";
-import { EmailError, sendEmail } from "@/lib/studio/email";
-import { clientKey, SlidingWindowLimiter } from "@/lib/studio/ratelimit";
-import { findListing } from "@/lib/studio/store";
+import { offerApproval } from "../../../../../../lib/studio/approval";
+import { EmailError, sendEmail } from "../../../../../../lib/studio/email";
+import { sameOrigin } from "../../../../../../lib/studio/http";
+import { clientKey, SlidingWindowLimiter } from "../../../../../../lib/studio/ratelimit";
+import { findListing } from "../../../../../../lib/studio/store";
 
 export const dynamic = "force-dynamic";
 
