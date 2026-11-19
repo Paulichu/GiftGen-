@@ -39,6 +39,11 @@ export interface EmailDraft {
   body: string;
 }
 
+export interface EmailApproval {
+  token: string;
+  expiresAt: string;
+}
+
 export interface EmailResult {
   ok: boolean;
   sentTo: string;
@@ -97,8 +102,10 @@ export const studio = {
   askOffer: (slug: string, message: string) =>
     request<OfferReply>(`/api/offers/${slug}/chat`, { method: "POST", body: JSON.stringify({ message }) }),
   emailDraft: (id: string) => request<EmailDraft>(`/api/listings/${id}/email`),
-  sendListingEmail: (id: string, draft: EmailDraft) =>
-    request<EmailResult>(`/api/listings/${id}/email`, { method: "POST", body: JSON.stringify(draft) }),
+  approveEmail: (id: string, draft: EmailDraft) =>
+    request<EmailApproval>(`/api/listings/${id}/email/approve`, { method: "POST", body: JSON.stringify(draft) }),
+  sendApprovedEmail: (id: string, token: string) =>
+    request<EmailResult>(`/api/listings/${id}/email/send`, { method: "POST", body: JSON.stringify({ token }) }),
 };
 
 export function errorMessage(error: unknown): string {

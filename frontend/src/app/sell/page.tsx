@@ -56,7 +56,8 @@ function EmailOffer({ listing }: { listing: ListingSummary }) {
     setSending(true);
     setStatus(null);
     try {
-      const result = await studio.sendListingEmail(listing.id, draft);
+      const approval = await studio.approveEmail(listing.id, draft);
+      const result = await studio.sendApprovedEmail(listing.id, approval.token);
       setStatus({ kind: "ok", text: `Sent to ${result.sentTo} from ${result.from}.` });
       setDraft({ ...draft, to: "" });
     } catch (caught) {
